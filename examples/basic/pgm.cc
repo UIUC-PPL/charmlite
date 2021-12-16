@@ -33,8 +33,8 @@ struct foo : public cmk::chare<foo, int> {
 int main(int argc, char** argv) {
   cmk::initialize(argc, argv);
   if (CmiMyNode() == 0) {
-    // create a collective
-    auto arr = cmk::collective_proxy<foo>::construct();
+    // create a collection
+    auto arr = cmk::collection_proxy<foo>::construct();
     // for each pe...
     for (auto i = 0; i < CmiNumPes(); i++) {
       auto elt = arr[i];

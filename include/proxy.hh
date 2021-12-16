@@ -38,13 +38,13 @@ using pack_helper_t = typename pack_helper<Args...>::type;
 
 template <typename T>
 class element_proxy {
-  collective_index_t id_;
+  collection_index_t id_;
   chare_index_t idx_;
 
  public:
   element_proxy(element_proxy<T>&&) = default;
   element_proxy(const element_proxy<T>&) = default;
-  element_proxy(const collective_index_t& id, const chare_index_t& idx)
+  element_proxy(const collection_index_t& id, const chare_index_t& idx)
       : id_(id), idx_(idx) {}
 
   template <typename... Args>
@@ -65,14 +65,14 @@ class element_proxy {
 };
 
 template <typename T>
-class collective_proxy_base_ {
+class collection_proxy_base_ {
  protected:
-  collective_index_t id_;
+  collection_index_t id_;
 
  public:
   using index_type = index_for_t<T>;
 
-  collective_proxy_base_(const collective_index_t& id) : id_(id) {}
+  collection_proxy_base_(const collection_index_t& id) : id_(id) {}
 
   element_proxy<T> operator[](const index_type& idx) {
     auto& view = index_view<index_type>::decode(idx);
@@ -87,36 +87,36 @@ class collective_proxy_base_ {
     send(msg);
   }
 
-  operator collective_index_t(void) const { return this->id_; }
+  operator collection_index_t(void) const { return this->id_; }
 };
 
 template <typename T>
-class collective_proxy : public collective_proxy_base_<T> {
-  using base_type = collective_proxy_base_<T>;
+class collection_proxy : public collection_proxy_base_<T> {
+  using base_type = collection_proxy_base_<T>;
 
  public:
   using index_type = typename base_type::index_type;
 
-  collective_proxy(const collective_index_t& id) : base_type(id) {}
+  collection_proxy(const collection_index_t& id) : base_type(id) {}
 
   // TODO ( disable using this with reserved mappers (i.e., node/group) )
   template <typename Mapper = default_mapper>
-  static collective_proxy<T> construct(void) {
-    collective_index_t id{(std::uint32_t)CmiMyPe(), local_collective_count_++};
-    auto kind = collective_helper_<collective<T, Mapper>>::kind_;
+  static collection_proxy<T> construct(void) {
+    collection_index_t id{(std::uint32_t)CmiMyPe(), local_collection_count_++};
+    auto kind = collection_helper_<collection<T, Mapper>>::kind_;
     auto* msg = new message();
     new (&msg->dst_) destination(id, cmk::all, kind);
-    msg->has_collective_kind() = true;
+    msg->has_collection_kind() = true;
     CmiSyncBroadcastAllAndFree(msg->total_size_, (char*)msg);
-    return collective_proxy<T>(id);
+    return collection_proxy<T>(id);
   }
 
   void done_inserting(void) {}
 };
 
 template <typename T>
-class group_proxy : public collective_proxy_base_<T> {
-  using base_type = collective_proxy_base_<T>;
+class group_proxy : public collection_proxy_base_<T> {
+  using base_type = collection_proxy_base_<T>;
 
  public:
   using index_type = typename base_type::index_type;
@@ -124,7 +124,7 @@ class group_proxy : public collective_proxy_base_<T> {
   static_assert(std::is_same<index_type, int>::value,
                 "groups must use integer indices");
 
-  group_proxy(const collective_index_t& id) : base_type(id) {}
+  group_proxy(const collection_index_t& id) : base_type(id) {}
 
   T* local_branch(void) {
     auto* loc = lookup(this->id_);
@@ -133,13 +133,13 @@ class group_proxy : public collective_proxy_base_<T> {
 
   template <typename... Args>
   static group_proxy<T> construct(Args... args) {
-    collective_index_t id{(std::uint32_t)CmiMyPe(), ++local_collective_count_};
+    collection_index_t id{(std::uint32_t)CmiMyPe(), ++local_collection_count_};
     // TODO ( need to join these with some sort of "create local" thing )
     {
-      auto kind = collective_helper_<collective<T, group_mapper>>::kind_;
+      auto kind = collection_helper_<collection<T, group_mapper>>::kind_;
       auto* msg = new message();
       new (&msg->dst_) destination(id, chare_bcast_root_, kind);
-      msg->has_collective_kind() = true;
+      msg->has_collection_kind() = true;
       CmiSyncBroadcastAllAndFree(msg->total_size_, (char*)msg);
     }
     {
@@ -172,9 +172,9 @@ struct chare : public chare_base_ {
     return index_view<Index>::decode(this->index_);
   }
 
-  // NOTE ( if we associated chares with particular collectives
+  // NOTE ( if we associated chares with particular collections
   //        we could make this a typed proxy )
-  const collective_index_t& collective(void) const { return this->parent_; }
+  const collection_index_t& collection(void) const { return this->parent_; }
 
   const cmk::element_proxy<T> element_proxy(void) {
     return cmk::element_proxy<T>(this->parent_, this->index_);

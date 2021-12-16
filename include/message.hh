@@ -35,7 +35,7 @@ struct message {
 
  private:
   static constexpr auto has_combiner_ = 0;
-  static constexpr auto has_collective_kind_ = has_combiner_ + 1;
+  static constexpr auto has_collection_kind_ = has_combiner_ + 1;
 
  public:
   using flag_type = std::bitset<8>::reference;
@@ -52,8 +52,8 @@ struct message {
 
   flag_type has_combiner(void) { return this->flags_[has_combiner_]; }
 
-  flag_type has_collective_kind(void) {
-    return this->flags_[has_collective_kind_];
+  flag_type has_collection_kind(void) {
+    return this->flags_[has_collection_kind_];
   }
 
   combiner_id_t *combiner(void) {

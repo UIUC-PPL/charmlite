@@ -12,10 +12,10 @@ struct destination {
   };
 
   struct s_endpoint_ {
-    collective_index_t collective;
+    collection_index_t collection;
     chare_index_t chare;
     entry_id_t entry;
-    // reserved for collective communication
+    // reserved for collection communication
     bcast_id_t bcast;
   };
 
@@ -36,11 +36,11 @@ struct destination {
     new (&(this->impl_.callback_fn_)) s_callback_fn_{.id = id, .pe = pe};
   }
 
-  destination(const collective_index_t& collective, const chare_index_t& chare,
+  destination(const collection_index_t& collection, const chare_index_t& chare,
               entry_id_t entry)
       : kind_(kEndpoint) {
     new (&(this->impl_.endpoint_))
-        s_endpoint_{.collective = collective, .chare = chare, .entry = entry};
+        s_endpoint_{.collection = collection, .chare = chare, .entry = entry};
   }
 
   inline s_callback_fn_& callback_fn(void) {
@@ -70,7 +70,7 @@ struct destination {
 
  private:
   // message uses this to store data inside the union
-  // when it only needs the collective id!
+  // when it only needs the collection id!
   inline void* offset_(void) { return &(this->impl_.endpoint_.entry); }
 };
 }  // namespace cmk

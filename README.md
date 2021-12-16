@@ -6,7 +6,7 @@ Status:
     `./build AMPI-only <triplet> <compiler>? --with-production -DCSD_NO_IDLE_TRACING=1 -DCSD_NO_PERIODIC=1`
 - Only tested with non-SMP builds, SMP builds currently crash:
     - This can be fixed by correctly isolating globals as Csv/Cpv.
-- Minimal support for collective communication:
+- Minimal support for collection communication:
     - Broadcasts only work for groups.
         - Plan to use Hypercomm distributed tree creation scheme for chare-arrays:
             - [Google doc write-up.](https://docs.google.com/document/d/1hv-9qm1dXR8R1VJXgtyFHuhTUoa_izrm-jDXPqqkpas/edit?usp=sharing)
@@ -16,4 +16,4 @@ Status:
 - No support for node/groups yet.
     - Very easy to do: add `<bool NodeLevel>` to existing group constructs.
 
-Overall... need more examples; feel free to _try_ porting your favorite example. (Be aware of collective communications limitations.)
+Overall... need more examples; feel free to _try_ porting your favorite example. (Be aware of collection communications limitations.)

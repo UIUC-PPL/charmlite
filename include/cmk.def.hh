@@ -29,20 +29,20 @@ template <typename T>
 chare_kind_t chare_kind_helper_<T>::kind_ = register_chare_<T>();
 
 template <typename T, typename Mapper>
-static collective_base_* construct_collective_(const collective_index_t& id) {
-  return new collective<T, Mapper>(id);
+static collection_base_* construct_collection_(const collection_index_t& id) {
+  return new collection<T, Mapper>(id);
 }
 
 template <typename T, typename Mapper>
-static collective_kind_t register_collective_(void) {
-  auto id = collective_kinds_.size() + 1;
-  collective_kinds_.emplace_back(&construct_collective_<T, Mapper>);
+static collection_kind_t register_collection_(void) {
+  auto id = collection_kinds_.size() + 1;
+  collection_kinds_.emplace_back(&construct_collection_<T, Mapper>);
   return id;
 }
 
 template <typename T, typename Mapper>
-collective_kind_t collective_helper_<collective<T, Mapper>>::kind_ =
-    register_collective_<T, Mapper>();
+collection_kind_t collection_helper_<collection<T, Mapper>>::kind_ =
+    register_collection_<T, Mapper>();
 
 template <typename T>
 static void message_deleter_impl_(void* msg) {

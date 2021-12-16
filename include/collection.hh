@@ -1,5 +1,5 @@
-#ifndef __CMK_COLLECTIVE_HH__
-#define __CMK_COLLECTIVE_HH__
+#ifndef __CMK_collection_HH__
+#define __CMK_collection_HH__
 
 #include "chare.hh"
 #include "ep.hh"
@@ -7,10 +7,10 @@
 #include "message.hh"
 
 namespace cmk {
-struct collective_base_ {
-  collective_index_t id_;
-  collective_base_(const collective_index_t& id) : id_(id) {}
-  virtual ~collective_base_() = default;
+struct collection_base_ {
+  collection_index_t id_;
+  collection_base_(const collection_index_t& id) : id_(id) {}
+  virtual ~collection_base_() = default;
   virtual void* lookup(const chare_index_t&) = 0;
   virtual void deliver(message* msg, bool immediate) = 0;
 
@@ -21,7 +21,7 @@ struct collective_base_ {
 };
 
 template <typename T, typename Mapper>
-struct collective : public collective_base_ {
+struct collection : public collection_base_ {
   locmgr<Mapper> locmgr_;
 
   std::unordered_map<chare_index_t, message_buffer_t> buffers_;
@@ -29,7 +29,7 @@ struct collective : public collective_base_ {
 
   static_assert(std::is_base_of<chare_base_, T>::value, "expected a chare!");
 
-  collective(const collective_index_t& id) : collective_base_(id) {}
+  collection(const collection_index_t& id) : collection_base_(id) {}
 
   virtual void* lookup(const chare_index_t& idx) override {
     auto find = this->chares_.find(idx);
@@ -171,11 +171,11 @@ struct collective : public collective_base_ {
 };
 
 template <typename T>
-struct collective_helper_;
+struct collection_helper_;
 
 template <typename T, typename Mapper>
-struct collective_helper_<collective<T, Mapper>> {
-  static collective_kind_t kind_;
+struct collection_helper_<collection<T, Mapper>> {
+  static collection_kind_t kind_;
 };
 }  // namespace cmk
 

@@ -13,9 +13,9 @@ void CmiInitMemAffinity(char** argv);
 namespace cmk {
 void start_fn_(int, char**);
 
-inline collective_base_* lookup(collective_index_t idx) {
-  auto find = collective_table_.find(idx);
-  if (find == std::end(collective_table_)) {
+inline collection_base_* lookup(collection_index_t idx) {
+  auto find = collection_table_.find(idx);
+  if (find == std::end(collection_table_)) {
     return nullptr;
   } else {
     return (find->second).get();

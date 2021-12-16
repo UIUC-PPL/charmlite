@@ -30,18 +30,18 @@ const chare_record_& record_for(void) {
 
 template <typename T, typename Enable = void>
 struct property_setter_ {
-  void operator()(T*, const collective_index_t&, const chare_index_t&) {}
+  void operator()(T*, const collection_index_t&, const chare_index_t&) {}
 };
 
 template <typename T, typename Index>
 struct chare;
 
 template <typename T, typename Mapper>
-class collective;
+class collection;
 
 struct chare_base_ {
  private:
-  collective_index_t parent_;
+  collection_index_t parent_;
   chare_index_t index_;
   bcast_id_t last_bcast_ = 0;
 
@@ -50,7 +50,7 @@ struct chare_base_ {
   friend class chare;
 
   template <typename T, typename Mapper>
-  friend class collective;
+  friend class collection;
 
   template <typename T, typename Enable>
   friend class property_setter_;
@@ -73,7 +73,7 @@ struct index_view {
 template <typename T>
 struct property_setter_<
     T, typename std::enable_if<std::is_base_of<chare_base_, T>::value>::type> {
-  void operator()(T* t, const collective_index_t& id,
+  void operator()(T* t, const collection_index_t& id,
                   const chare_index_t& idx) {
     t->parent_ = id;
     t->index_ = idx;

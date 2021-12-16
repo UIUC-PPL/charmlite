@@ -1,7 +1,7 @@
 #include "core.hh"
 
 #include "callback.hh"
-#include "collective.hh"
+#include "collection.hh"
 #include "ep.hh"
 
 namespace cmk {
@@ -12,10 +12,10 @@ chare_table_t chare_table_;
 message_table_t message_table_;
 callback_table_t callback_table_;
 combiner_table_t combiner_table_;
-collective_kinds_t collective_kinds_;
-collective_table_t collective_table_;
-collective_buffer_t collective_buffer_;
-std::uint32_t local_collective_count_ = 0;
+collection_kinds_t collection_kinds_;
+collection_table_t collection_table_;
+collection_buffer_t collection_buffer_;
+std::uint32_t local_collection_count_ = 0;
 
 void start_fn_(int, char** argv) {
   register_deliver_();
@@ -44,15 +44,15 @@ void exit(message* msg) {
 
 inline void deliver_to_endpoint_(message* msg, bool immediate) {
   auto& ep = msg->dst_.endpoint();
-  auto& col = ep.collective;
-  if (msg->has_collective_kind()) {
-    auto kind = (collective_kind_t)ep.entry;
-    auto& rec = collective_kinds_[kind - 1];
+  auto& col = ep.collection;
+  if (msg->has_collection_kind()) {
+    auto kind = (collection_kind_t)ep.entry;
+    auto& rec = collection_kinds_[kind - 1];
     auto* obj = rec(col);
-    auto ins = collective_table_.emplace(col, obj);
+    auto ins = collection_table_.emplace(col, obj);
     CmiAssertMsg(ins.second, "insertion did not occur!");
-    auto find = collective_buffer_.find(col);
-    if (find == std::end(collective_buffer_)) {
+    auto find = collection_buffer_.find(col);
+    if (find == std::end(collection_buffer_)) {
       return;
     } else {
       auto& buffer = find->second;
@@ -63,9 +63,9 @@ inline void deliver_to_endpoint_(message* msg, bool immediate) {
       }
     }
   } else {
-    auto search = collective_table_.find(col);
-    if (search == std::end(collective_table_)) {
-      collective_buffer_[col].emplace_back(msg);
+    auto search = collection_table_.find(col);
+    if (search == std::end(collection_table_)) {
+      collection_buffer_[col].emplace_back(msg);
     } else {
       search->second->deliver(msg, immediate);
     }
@@ -108,7 +108,7 @@ void send(message* msg) {
       break;
     }
     case kEndpoint:
-      CmiAssert(!msg->has_collective_kind());
+      CmiAssert(!msg->has_collection_kind());
       deliver_to_endpoint_(msg, false);
       break;
     default:

@@ -1,7 +1,7 @@
 /* charmlite completion detection demo
  *
  * ( completion detection is important
- *   for hypercomm collectives, hence
+ *   for hypercomm collections, hence
  *   giving priority to this! )
  *
  * author: j. szaday <szaday2@illinois.edu>
@@ -14,7 +14,7 @@ class completion : public cmk::chare<completion, int> {
  public:
   struct count;
   using detection_message =
-      cmk::data_message<std::tuple<cmk::collective_index_t, cmk::callback>>;
+      cmk::data_message<std::tuple<cmk::collection_index_t, cmk::callback>>;
   using count_message = cmk::data_message<count>;
 
   struct status {
@@ -26,11 +26,11 @@ class completion : public cmk::chare<completion, int> {
   };
 
   struct count {
-    cmk::collective_index_t detector;
-    cmk::collective_index_t target;
+    cmk::collection_index_t detector;
+    cmk::collection_index_t target;
     std::int64_t gcount;
 
-    count(cmk::collective_index_t detector_, cmk::collective_index_t target_,
+    count(cmk::collection_index_t detector_, cmk::collection_index_t target_,
           std::int64_t gcount_)
         : detector(detector_), target(target_), gcount(gcount_) {}
 
@@ -41,13 +41,13 @@ class completion : public cmk::chare<completion, int> {
     }
   };
 
-  cmk::collective_map<status> statii;
+  cmk::collection_map<status> statii;
 
   completion(void) = default;
 
-  // obtain the completion status of a collective
+  // obtain the completion status of a collection
   // (setting a callback message if one isn't present)
-  status& get_status(cmk::collective_index_t idx,
+  status& get_status(cmk::collection_index_t idx,
                      detection_message* msg = nullptr) {
     auto find = this->statii.find(idx);
     if (find == std::end(this->statii)) {
@@ -70,19 +70,19 @@ class completion : public cmk::chare<completion, int> {
     } else {
       // contribute to the all_reduce with other participants
       // TODO ( need to provide a tag if there are multiple reductions )
-      auto* count = new count_message(this->collective(), idx, status.lcount);
+      auto* count = new count_message(this->collection(), idx, status.lcount);
       cmk::all_reduce<cmk::add<typename count_message::type>, receive_count_>(
           count);
     }
   }
 
   // produce one or more events
-  void produce(cmk::collective_index_t idx, std::int64_t n = 1) {
+  void produce(cmk::collection_index_t idx, std::int64_t n = 1) {
     this->get_status(idx).lcount += n;
   }
 
   // consume one or more events
-  void consume(cmk::collective_index_t idx, std::int64_t n = 1) {
+  void consume(cmk::collection_index_t idx, std::int64_t n = 1) {
     this->produce(idx, -n);
   }
 
@@ -115,9 +115,9 @@ struct test : cmk::chare<test, int> {
     } else {
       // each pe will expect a message from each pe (inclusive)
       CmiPrintf("%d> producing %d value(s)...\n", CmiMyPe(), CmiNumPes());
-      detector.local_branch()->produce(this->collective(), CmiNumPes());
+      detector.local_branch()->produce(this->collection(), CmiNumPes());
       // so send the messages
-      cmk::group_proxy<test> col(this->collective());
+      cmk::group_proxy<test> col(this->collection());
       col.broadcast<cmk::message, &test::consume>(msg);
     }
   }
@@ -131,7 +131,7 @@ struct test : cmk::chare<test, int> {
     } else {
       // indicate that we received an expected message
       CmiPrintf("%d> consuming a value...\n", CmiMyPe());
-      local->consume(this->collective());
+      local->consume(this->collection());
 
       // start completion detection at "root" if we haven't already
       if (!detection_started_ && (this->index() == 0)) {
@@ -141,7 +141,7 @@ struct test : cmk::chare<test, int> {
         //  but this checks that broadcasts are working!)
         detector.broadcast<completion::detection_message,
                            &completion::start_detection>(
-            new completion::detection_message(this->collective(), cb));
+            new completion::detection_message(this->collection(), cb));
 
         detection_started_ = true;
       }
