@@ -25,8 +25,8 @@ void start_fn_(int, char** argv) {
   CmiInitMemAffinity(argv);
   CmiInitCPUTopology(argv);
   // threads wait until _topoTree has been generated
-  CmiNodeAllBarrier();
 #endif
+  CmiNodeAllBarrier();
   CsdScheduleForever();
 }
 

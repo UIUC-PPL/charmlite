@@ -38,8 +38,8 @@ inline void initialize(int argc, char** argv) {
   CmiInitCPUTopology(argv);
   TopoManager_reset();  // initialize TopoManager singleton
   _topoTree = ST_RecursivePartition_getTreeInfo(0);
-  CmiNodeAllBarrier();
 #endif
+  CmiNodeAllBarrier();
 }
 
 inline void finalize(void) {
