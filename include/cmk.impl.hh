@@ -1,5 +1,5 @@
-#ifndef __CMK_DEF_HH__
-#define __CMK_DEF_HH__
+#ifndef __CMK_IMPL_HH__
+#define __CMK_IMPL_HH__
 
 #include "ep.hh"
 

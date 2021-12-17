@@ -1,12 +1,9 @@
 /* charmlite demo
  *
- * merely follows familiar naming conventions
- * charmxi is NOT used, all achieved via TMP
- *
  * author: j. szaday <szaday2@illinois.edu>
  */
 
-#include "cmk.decl.hh"
+#include <cmk.hh>
 
 // a message with only POD members (constant-size)
 struct test_message : public cmk::plain_message<test_message> {
@@ -49,6 +46,3 @@ int main(int argc, char** argv) {
   cmk::finalize();
   return 0;
 }
-
-// registers user-defined types with the rts
-#include "cmk.def.hh"

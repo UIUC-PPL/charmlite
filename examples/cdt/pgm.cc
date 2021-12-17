@@ -7,7 +7,7 @@
  * author: j. szaday <szaday2@illinois.edu>
  */
 
-#include "cmk.decl.hh"
+#include <cmk.hh>
 
 // a chare that uses an int for its index
 class completion : public cmk::chare<completion, int> {
@@ -164,6 +164,3 @@ int main(int argc, char** argv) {
   cmk::finalize();
   return 0;
 }
-
-// registers user-defined types with the rts
-#include "cmk.def.hh"
