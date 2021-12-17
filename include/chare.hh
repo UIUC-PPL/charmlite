@@ -17,9 +17,9 @@ struct chare_record_ {
   chare_record_(const char* name, std::size_t size)
       : name_(name), size_(size) {}
 
-  void* allocate(void) const { return ::operator new(this->size_); }
+  void* allocate(void) const { return ::operator new (this->size_); }
 
-  void deallocate(void* obj) const { ::operator delete(obj); }
+  void deallocate(void* obj) const { ::operator delete (obj); }
 };
 
 template <typename T>
@@ -39,11 +39,29 @@ struct chare;
 template <typename T, typename Mapper>
 class collection;
 
+struct reducer_ {
+  std::vector<chare_index_t> upstream;
+  std::vector<chare_index_t> downstream;
+  std::vector<message_ptr<message>> received;
+
+  reducer_(std::vector<chare_index_t>&& up, std::vector<chare_index_t>&& down)
+      : upstream(std::move(up)), downstream(std::move(down)) {}
+
+  bool ready(void) const {
+    // a message from all our children and from us
+    return received.size() == (upstream.size() + 1);
+  }
+};
+
 struct chare_base_ {
  private:
   collection_index_t parent_;
   chare_index_t index_;
+  bcast_id_t last_redn_ = 0;
   bcast_id_t last_bcast_ = 0;
+
+  using reducer_map_t = std::unordered_map<bcast_id_t, reducer_>;
+  reducer_map_t reducers_;
 
  public:
   template <typename T, typename Index>

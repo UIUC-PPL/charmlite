@@ -41,8 +41,14 @@ class callback {
   callback(Args&&... args) : dst_(std::forward<Args>(args)...) {}
 
  public:
+  inline void imprint(destination& dst) const {
+    new (&dst) destination(this->dst_);
+  }
+
+  inline void imprint(message* msg) const { this->imprint(msg->dst_); }
+
   void send(message* msg) {
-    new (&(msg->dst_)) destination(this->dst_);
+    this->imprint(msg);
     cmk::send(msg);
   }
 

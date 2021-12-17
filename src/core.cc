@@ -79,6 +79,9 @@ inline void deliver_to_endpoint_(message* msg, bool immediate) {
     auto ins = tab.emplace(col, obj);
     CmiAssertMsg(ins.second, "insertion did not occur!");
     auto find = buf.find(col);
+    // free now that we're done with the endpoint
+    message::free(msg);
+    // check whether there are buffered messages...
     if (find == std::end(buf)) {
       return;
     } else {

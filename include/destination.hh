@@ -16,6 +16,7 @@ struct destination {
     chare_index_t chare;
     entry_id_t entry;
     // reserved for collection communication
+    // TODO ( so rename it as such! )
     bcast_id_t bcast;
   };
 

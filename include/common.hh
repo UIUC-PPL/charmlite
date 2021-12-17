@@ -97,10 +97,11 @@ using collection_buffer_t =
 
 constexpr entry_id_t nil_entry_ = 0;
 constexpr collection_kind_t nil_kind_ = 0;
-// TODO ( make this more distinct -- ensure it plays nicely with chare_index_t )
+// TODO ( make these more distinct? )
 constexpr int all = -1;
 constexpr auto chare_bcast_root_ = std::numeric_limits<chare_index_t>::max();
 
+// TODO ( rename this "collective" id type )
 using bcast_id_t = std::uint16_t;
 
 // Shared between workers in a process

@@ -13,6 +13,7 @@ struct collection_base_ {
   virtual ~collection_base_() = default;
   virtual void* lookup(const chare_index_t&) = 0;
   virtual void deliver(message* msg, bool immediate) = 0;
+  virtual void contribute(message* msg) = 0;
 
   template <typename T>
   inline T* lookup(const chare_index_t& idx) {
@@ -135,7 +136,45 @@ struct collection : public collection_base_ {
     }
   }
 
+  virtual void contribute(message* msg) override {
+    auto& ep = msg->dst_.endpoint();
+    auto& idx = ep.chare;
+    auto* obj = static_cast<chare_base_*>(this->lookup(idx));
+    // stamp the message with the reduction number
+    ep.bcast = ++(obj->last_redn_);
+    // and handle it!
+    this->handle_reduction_message_(obj, msg);
+  }
+
  private:
+  using reducer_iterator_t = typename chare_base_::reducer_map_t::iterator;
+
+  void handle_reduction_message_(chare_base_* obj, message* msg) {
+    auto& ep = msg->dst_.endpoint();
+    auto& redn = ep.bcast;
+    auto search = this->get_reducer_(obj, redn);
+    auto& reducer = search->second;
+    reducer.received.emplace_back(msg);
+    if (reducer.ready()) {
+      // combine all messages
+
+      // send to downstream...
+    }
+  }
+
+  reducer_iterator_t get_reducer_(chare_base_* obj, bcast_id_t redn) {
+    auto& reducers = obj->reducers_;
+    auto find = reducers.find(redn);
+    if (find == std::end(reducers)) {
+      auto& idx = obj->index_;
+      auto up = this->locmgr_.upstream(idx);
+      auto down = this->locmgr_.downstream(idx);
+      auto ins = reducers.emplace(idx, std::move(up), std::move(down));
+      find = ins.first;
+    }
+    return find;
+  }
+
   void handle_(const entry_record_* rec, T* obj, message* msg) {
     if (msg->is_broadcast()) {
       auto* base = static_cast<chare_base_*>(obj);
