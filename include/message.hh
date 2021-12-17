@@ -16,7 +16,7 @@ struct message_record_ {
 
 using message_table_t = std::vector<message_record_>;
 using message_kind_t = typename message_table_t::size_type;
-extern message_table_t message_table_;
+CsvExtern(message_table_t, message_table_);
 
 constexpr std::size_t header_size = CmiMsgHeaderSizeBytes;
 
@@ -70,9 +70,9 @@ struct message {
     } else {
       auto &kind = static_cast<message *>(msg)->kind_;
       if (kind == 0) {
-        message::operator delete (msg);
+        message::operator delete(msg);
       } else {
-        message_table_[kind - 1].deleter_(msg);
+        CsvAccess(message_table_)[kind - 1].deleter_(msg);
       }
     }
   }

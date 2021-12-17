@@ -102,7 +102,8 @@ class collection_proxy : public collection_proxy_base_<T> {
   // TODO ( disable using this with reserved mappers (i.e., node/group) )
   template <typename Mapper = default_mapper>
   static collection_proxy<T> construct(void) {
-    collection_index_t id{(std::uint32_t)CmiMyPe(), local_collection_count_++};
+    collection_index_t id{(std::uint32_t)CmiMyPe(),
+                          CpvAccess(local_collection_count_)++};
     auto kind = collection_helper_<collection<T, Mapper>>::kind_;
     auto* msg = new message();
     new (&msg->dst_) destination(id, cmk::all, kind);
@@ -133,7 +134,8 @@ class group_proxy : public collection_proxy_base_<T> {
 
   template <typename... Args>
   static group_proxy<T> construct(Args... args) {
-    collection_index_t id{(std::uint32_t)CmiMyPe(), ++local_collection_count_};
+    collection_index_t id{(std::uint32_t)CmiMyPe(),
+                          ++CpvAccess(local_collection_count_)};
     // TODO ( need to join these with some sort of "create local" thing )
     {
       auto kind = collection_helper_<collection<T, group_mapper>>::kind_;

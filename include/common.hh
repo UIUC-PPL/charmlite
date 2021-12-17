@@ -103,17 +103,19 @@ constexpr auto chare_bcast_root_ = std::numeric_limits<chare_index_t>::max();
 
 using bcast_id_t = std::uint16_t;
 
-// FIXME ( make these csv variables! )
-extern entry_table_t entry_table_;
-extern chare_table_t chare_table_;
-extern callback_table_t callback_table_;
-extern combiner_table_t combiner_table_;
-extern collection_kinds_t collection_kinds_;
-extern collection_table_t collection_table_;
-extern collection_buffer_t collection_buffer_;
-extern std::uint32_t local_collection_count_;
-
+// Shared between workers in a process
+CsvExtern(entry_table_t, entry_table_);
+CsvExtern(chare_table_t, chare_table_);
+CsvExtern(callback_table_t, callback_table_);
+CsvExtern(combiner_table_t, combiner_table_);
+CsvExtern(collection_kinds_t, collection_kinds_);
+// Each worker has its own instance of these
+CpvExtern(collection_table_t, collection_table_);
+CpvExtern(collection_buffer_t, collection_buffer_);
+CpvExtern(std::uint32_t, local_collection_count_);
 CpvExtern(int, deliver_handler_);
+
+void initialize_globals_(void);
 
 struct destination;
 enum destination_kind : std::uint8_t { kInvalid = 0, kCallback, kEndpoint };

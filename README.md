@@ -4,8 +4,9 @@ Status:
 - Requires that `${env:CHARM_HOME}` points to a valid Charm++ build.
     - The lightest possible build is:
     `./build AMPI-only <triplet> <compiler>? --with-production -DCSD_NO_IDLE_TRACING=1 -DCSD_NO_PERIODIC=1`
-- Only tested with non-SMP builds, SMP builds currently crash:
-    - This can be fixed by correctly isolating globals as Csv/Cpv.
+- Only tested with non-SMP builds, SMP builds ~~currently crash~~:
+    - ~~This can be fixed by correctly isolating globals as Csv/Cpv.~~
+    - Probably fixed but needs more testing.
 - Minimal support for collection communication:
     - Broadcasts only work for groups.
         - Plan to use Hypercomm distributed tree creation scheme for chare-arrays:

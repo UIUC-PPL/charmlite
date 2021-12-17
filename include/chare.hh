@@ -17,15 +17,15 @@ struct chare_record_ {
   chare_record_(const char* name, std::size_t size)
       : name_(name), size_(size) {}
 
-  void* allocate(void) const { return ::operator new (this->size_); }
+  void* allocate(void) const { return ::operator new(this->size_); }
 
-  void deallocate(void* obj) const { ::operator delete (obj); }
+  void deallocate(void* obj) const { ::operator delete(obj); }
 };
 
 template <typename T>
 const chare_record_& record_for(void) {
   auto id = chare_kind_helper_<T>::kind_;
-  return chare_table_[id - 1];
+  return CsvAccess(chare_table_)[id - 1];
 }
 
 template <typename T, typename Enable = void>

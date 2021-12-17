@@ -5,20 +5,40 @@
 #include "ep.hh"
 
 namespace cmk {
+
+CsvDeclare(entry_table_t, entry_table_);
+CsvDeclare(chare_table_t, chare_table_);
+CsvDeclare(message_table_t, message_table_);
+CsvDeclare(callback_table_t, callback_table_);
+CsvDeclare(combiner_table_t, combiner_table_);
+CsvDeclare(collection_kinds_t, collection_kinds_);
+
+CpvDeclare(collection_table_t, collection_table_);
+CpvDeclare(collection_buffer_t, collection_buffer_);
+CpvDeclare(std::uint32_t, local_collection_count_);
 CpvDeclare(int, deliver_handler_);
 
-entry_table_t entry_table_;
-chare_table_t chare_table_;
-message_table_t message_table_;
-callback_table_t callback_table_;
-combiner_table_t combiner_table_;
-collection_kinds_t collection_kinds_;
-collection_table_t collection_table_;
-collection_buffer_t collection_buffer_;
-std::uint32_t local_collection_count_ = 0;
+void initialize_globals_(void) {
+  if (CmiMyRank() == 0) {
+    CsvInitialize(entry_table_t, entry_table_);
+    CsvInitialize(chare_table_t, chare_table_);
+    CsvInitialize(message_table_t, message_table_);
+    CsvInitialize(callback_table_t, callback_table_);
+    CsvInitialize(combiner_table_t, combiner_table_);
+    CsvInitialize(collection_kinds_t, collection_kinds_);
+  }
+  CpvInitialize(collection_table_t, collection_table_);
+  CpvInitialize(collection_buffer_t, collection_buffer_);
+  // collection ids start after zero
+  CpvInitialize(std::uint32_t, local_collection_count_);
+  CpvAccess(local_collection_count_) = 0;
+  // register converse handlers
+  CpvInitialize(int, deliver_handler_);
+  CpvAccess(deliver_handler_) = CmiRegisterHandler(deliver);
+}
 
 void start_fn_(int, char** argv) {
-  register_deliver_();
+  initialize_globals_();
 #if CHARMLITE_TOPOLOGY
   CmiNodeAllBarrier();
   CmiInitCPUAffinity(argv);
@@ -27,7 +47,12 @@ void start_fn_(int, char** argv) {
   // threads wait until _topoTree has been generated
 #endif
   CmiNodeAllBarrier();
-  CsdScheduleForever();
+  if (CmiInCommThread()) {
+    // the comm thread has to get back to work!
+    return;
+  } else {
+    CsdScheduleForever();
+  }
 }
 
 // handle an exit message on each pe
@@ -44,15 +69,17 @@ void exit(message* msg) {
 
 inline void deliver_to_endpoint_(message* msg, bool immediate) {
   auto& ep = msg->dst_.endpoint();
+  auto& buf = CpvAccess(collection_buffer_);
+  auto& tab = CpvAccess(collection_table_);
   auto& col = ep.collection;
   if (msg->has_collection_kind()) {
     auto kind = (collection_kind_t)ep.entry;
-    auto& rec = collection_kinds_[kind - 1];
+    auto& rec = CsvAccess(collection_kinds_)[kind - 1];
     auto* obj = rec(col);
-    auto ins = collection_table_.emplace(col, obj);
+    auto ins = tab.emplace(col, obj);
     CmiAssertMsg(ins.second, "insertion did not occur!");
-    auto find = collection_buffer_.find(col);
-    if (find == std::end(collection_buffer_)) {
+    auto find = buf.find(col);
+    if (find == std::end(buf)) {
       return;
     } else {
       auto& buffer = find->second;
@@ -63,9 +90,9 @@ inline void deliver_to_endpoint_(message* msg, bool immediate) {
       }
     }
   } else {
-    auto search = collection_table_.find(col);
-    if (search == std::end(collection_table_)) {
-      collection_buffer_[col].emplace_back(msg);
+    auto search = tab.find(col);
+    if (search == std::end(tab)) {
+      buf[col].emplace_back(msg);
     } else {
       search->second->deliver(msg, immediate);
     }

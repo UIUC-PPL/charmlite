@@ -16,11 +16,11 @@ struct callback_helper_ {
 };
 
 inline combiner_t combiner_for(combiner_id_t id) {
-  return id ? combiner_table_[id - 1] : nullptr;
+  return id ? CsvAccess(combiner_table_)[id - 1] : nullptr;
 }
 
 inline callback_t callback_for(callback_id_t id) {
-  return id ? callback_table_[id - 1] : nullptr;
+  return id ? CsvAccess(callback_table_)[id - 1] : nullptr;
 }
 
 inline combiner_t combiner_for(message* msg) {

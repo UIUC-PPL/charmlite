@@ -14,22 +14,18 @@ namespace cmk {
 void start_fn_(int, char**);
 
 inline collection_base_* lookup(collection_index_t idx) {
-  auto find = collection_table_.find(idx);
-  if (find == std::end(collection_table_)) {
+  auto& tab = CpvAccess(collection_table_);
+  auto find = tab.find(idx);
+  if (find == std::end(tab)) {
     return nullptr;
   } else {
     return (find->second).get();
   }
 }
 
-inline void register_deliver_(void) {
-  CpvInitialize(int, deliver_handler_);
-  CpvAccess(deliver_handler_) = CmiRegisterHandler(deliver);
-}
-
 inline void initialize(int argc, char** argv) {
   ConverseInit(argc, argv, start_fn_, 1, 1);
-  register_deliver_();
+  initialize_globals_();
 #if CHARMLITE_TOPOLOGY
   TopoManager_init();
   CmiNodeAllBarrier();

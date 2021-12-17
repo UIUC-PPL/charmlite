@@ -8,7 +8,7 @@ inline const entry_record_ *record_for(entry_id_t id) {
   if (id == nil_entry_) {
     return nullptr;
   } else {
-    return &(entry_table_[id - 1]);
+    return &(CsvAccess(entry_table_)[id - 1]);
   }
 }
 

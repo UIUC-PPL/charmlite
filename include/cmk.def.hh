@@ -9,8 +9,8 @@
 namespace cmk {
 template <entry_fn_t Fn, bool Constructor>
 static entry_id_t register_entry_fn_(void) {
-  auto id = entry_table_.size() + 1;
-  entry_table_.emplace_back(Fn, Constructor);
+  auto id = CsvAccess(entry_table_).size() + 1;
+  CsvAccess(entry_table_).emplace_back(Fn, Constructor);
   return id;
 }
 
@@ -20,8 +20,8 @@ entry_id_t entry_fn_helper_<Fn, Constructor>::id_ =
 
 template <typename T>
 static chare_kind_t register_chare_(void) {
-  auto id = chare_table_.size() + 1;
-  chare_table_.emplace_back(typeid(T).name(), sizeof(T));
+  auto id = CsvAccess(chare_table_).size() + 1;
+  CsvAccess(chare_table_).emplace_back(typeid(T).name(), sizeof(T));
   return id;
 }
 
@@ -35,8 +35,8 @@ static collection_base_* construct_collection_(const collection_index_t& id) {
 
 template <typename T, typename Mapper>
 static collection_kind_t register_collection_(void) {
-  auto id = collection_kinds_.size() + 1;
-  collection_kinds_.emplace_back(&construct_collection_<T, Mapper>);
+  auto id = CsvAccess(collection_kinds_).size() + 1;
+  CsvAccess(collection_kinds_).emplace_back(&construct_collection_<T, Mapper>);
   return id;
 }
 
@@ -51,8 +51,8 @@ static void message_deleter_impl_(void* msg) {
 
 template <typename T>
 static message_kind_t register_message_(void) {
-  auto id = message_table_.size() + 1;
-  message_table_.emplace_back(&message_deleter_impl_<T>);
+  auto id = CsvAccess(message_table_).size() + 1;
+  CsvAccess(message_table_).emplace_back(&message_deleter_impl_<T>);
   return id;
 }
 
@@ -68,11 +68,11 @@ static std::size_t register_function_(std::vector<T>& table) {
 
 template <combiner_t Fn>
 combiner_id_t combiner_helper_<Fn>::id_ =
-    register_function_<combiner_t, Fn>(combiner_table_);
+    register_function_<combiner_t, Fn>(CsvAccess(combiner_table_));
 
 template <callback_t Fn>
 callback_id_t callback_helper_<Fn>::id_ =
-    register_function_<callback_t, Fn>(callback_table_);
+    register_function_<callback_t, Fn>(CsvAccess(callback_table_));
 
 }  // namespace cmk
 
