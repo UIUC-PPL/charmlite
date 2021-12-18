@@ -41,6 +41,12 @@ class callback {
   callback(Args&&... args) : dst_(std::forward<Args>(args)...) {}
 
  public:
+  template <typename T>
+  friend class collection_proxy_base_;
+
+  template <typename T>
+  friend class element_proxy;
+
   inline void imprint(destination& dst) const {
     new (&dst) destination(this->dst_);
   }

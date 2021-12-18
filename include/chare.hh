@@ -34,7 +34,7 @@ struct property_setter_ {
 };
 
 template <typename T, typename Index>
-struct chare;
+class chare;
 
 template <typename T, typename Mapper>
 class collection;
@@ -71,7 +71,7 @@ struct chare_base_ {
   friend class collection;
 
   template <typename T, typename Enable>
-  friend class property_setter_;
+  friend struct property_setter_;
 };
 
 template <typename T, typename Enable = void>

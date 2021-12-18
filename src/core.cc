@@ -1,8 +1,7 @@
 #include "core.hh"
 
-#include "callback.hh"
 #include "collection.hh"
-#include "ep.hh"
+#include "proxy.hh"
 
 namespace cmk {
 

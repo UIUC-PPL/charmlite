@@ -62,7 +62,7 @@ class locmgr<group_mapper> : public locmgr_base_<group_mapper> {
       children.reserve(n_children);
       std::transform(std::begin(child_pes), std::end(child_pes),
                      std::back_inserter(children), index_view<int>::encode);
-      return std::move(children);
+      return children;
     } else {
       return {};
     }

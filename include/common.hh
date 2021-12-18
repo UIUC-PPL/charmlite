@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <limits>
 #include <memory>
 #include <type_traits>
 #include <unordered_map>
@@ -16,7 +17,13 @@ struct message;
 
 struct chare_record_;
 
-struct collection_base_;
+template <typename T>
+class element_proxy;
+
+class collection_base_;
+
+template <typename T>
+class collection_proxy_base_;
 
 struct collection_index_t {
   std::uint32_t pe_;

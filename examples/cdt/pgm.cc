@@ -29,13 +29,11 @@ class completion : public cmk::chare<completion, int> {
   };
 
   struct count {
-    cmk::collection_index_t detector;
     cmk::collection_index_t target;
     std::int64_t gcount;
 
-    count(cmk::collection_index_t detector_, cmk::collection_index_t target_,
-          std::int64_t gcount_)
-        : detector(detector_), target(target_), gcount(gcount_) {}
+    count(cmk::collection_index_t target_, std::int64_t gcount_)
+        : target(target_), gcount(gcount_) {}
 
     // used by the cmk::add operator
     count& operator+=(const count& other) {
@@ -76,8 +74,9 @@ class completion : public cmk::chare<completion, int> {
       new (&status) completion::status(nullptr);
     } else {
       // contribute to the all_reduce with other participants
-      auto cb = cmk::callback::construct<receive_count_>(cmk::all);
-      auto* count = new count_message(this->collection(), idx, status.lcount);
+      auto cb = this->collection_proxy()
+                    .callback<count_message, &completion::receive_count_>();
+      auto* count = new count_message(idx, status.lcount);
       this->element_proxy().contribute<cmk::add<typename count_message::type>>(
           count, cb);
     }
@@ -96,12 +95,11 @@ class completion : public cmk::chare<completion, int> {
  private:
   // receive the global-count from the all-reduce
   // and update the status accordingly
-  static void receive_count_(cmk::message* msg) {
-    auto& gcount = static_cast<count_message*>(msg)->value();
-    auto* self = cmk::lookup(gcount.detector)->lookup<completion>(CmiMyPe());
-    auto& status = self->get_status(gcount.target);
+  void receive_count_(count_message* msg) {
+    auto& gcount = msg->value();
+    auto& status = this->get_status(gcount.target);
     status.complete = (gcount.gcount == 0);
-    self->start_detection(status.msg);
+    this->start_detection(status.msg);
     cmk::message::free(msg);
   }
 };
@@ -148,8 +146,7 @@ struct test : cmk::chare<test, int> {
       if (!detection_started_) {
         // goal : wake up the main pe!
         auto cb = cmk::callback::construct<resume_main_>(0);
-        auto* dm = 
-            new completion::detection_message(this->collection(), cb);
+        auto* dm = new completion::detection_message(this->collection(), cb);
         // (each pe could start its own completion detection
         //  but this checks that broadcasts are working!)
         detector.broadcast<completion::detection_message,

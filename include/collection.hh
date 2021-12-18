@@ -8,8 +8,11 @@
 #include "message.hh"
 
 namespace cmk {
-struct collection_base_ {
+class collection_base_ {
+ protected:
   collection_index_t id_;
+
+ public:
   collection_base_(const collection_index_t& id) : id_(id) {}
   virtual ~collection_base_() = default;
   virtual void* lookup(const chare_index_t&) = 0;
@@ -23,12 +26,13 @@ struct collection_base_ {
 };
 
 template <typename T, typename Mapper>
-struct collection : public collection_base_ {
+class collection : public collection_base_ {
   locmgr<Mapper> locmgr_;
 
   std::unordered_map<chare_index_t, message_buffer_t> buffers_;
   std::unordered_map<chare_index_t, std::unique_ptr<T>> chares_;
 
+ public:
   static_assert(std::is_base_of<chare_base_, T>::value, "expected a chare!");
 
   collection(const collection_index_t& id) : collection_base_(id) {}
@@ -76,6 +80,7 @@ struct collection : public collection_base_ {
       property_setter_<T>()(ch, this->id_, idx);
       // place the chare within our element list
       auto ins = chares_.emplace(idx, ch);
+      CmiAssertMsg(ins.second, "insertion did not occur!");
       // call constructor on chare
       (rec->fn_)(ch, msg);
       // flush any messages we have for it

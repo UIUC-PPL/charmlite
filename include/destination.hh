@@ -29,7 +29,7 @@ struct destination {
   destination_kind kind_;
 
  public:
-  friend class message;
+  friend struct message;
 
   destination(void) : kind_(kInvalid) {}
 

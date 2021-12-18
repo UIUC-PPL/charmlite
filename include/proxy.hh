@@ -1,7 +1,10 @@
 #ifndef __CMK_PROXY_HH__
 #define __CMK_PROXY_HH__
 
+#include "callback.hh"
+#include "chare.hh"
 #include "ep.hh"
+#include "locmgr.hh"
 
 namespace cmk {
 
@@ -35,9 +38,6 @@ struct pack_helper<> {
 
 template <typename... Args>
 using pack_helper_t = typename pack_helper<Args...>::type;
-
-template <typename T>
-class element_proxy;
 
 class element_proxy_base_ {
  private:
@@ -80,9 +80,15 @@ class element_proxy : public element_proxy_base_ {
     deliver(msg);
   }
 
+  template <typename Message, member_fn_t<T, Message> Fn>
+  cmk::callback callback(void) const {
+    return cmk::callback(this->id_, this->idx_,
+                         entry<member_fn_t<T, Message>, Fn>());
+  }
+
  protected:
   template <combiner_t Combiner>
-  void contribute(message* msg, const callback& cb) const {
+  void contribute(message* msg, const cmk::callback& cb) const {
     // set the contribution's combiner
     msg->has_combiner() = true;
     new (&(msg->dst_))
@@ -107,13 +113,19 @@ class collection_proxy_base_ {
 
   collection_proxy_base_(const collection_index_t& id) : id_(id) {}
 
-  element_proxy<T> operator[](const index_type& idx) {
+  element_proxy<T> operator[](const index_type& idx) const {
     auto& view = index_view<index_type>::decode(idx);
     return element_proxy<T>(this->id_, view);
   }
 
   template <typename Message, member_fn_t<T, Message> Fn>
-  void broadcast(Message* msg) {
+  cmk::callback callback(void) const {
+    return cmk::callback(this->id_, chare_bcast_root_,
+                         entry<member_fn_t<T, Message>, Fn>());
+  }
+
+  template <typename Message, member_fn_t<T, Message> Fn>
+  void broadcast(Message* msg) const {
     // send a message to the broadcast root
     new (&msg->dst_) destination(this->id_, chare_bcast_root_,
                                  entry<member_fn_t<T, Message>, Fn>());
@@ -202,7 +214,8 @@ class group_proxy : public collection_proxy_base_<T> {
 };
 
 template <typename T, typename Index>
-struct chare : public chare_base_ {
+class chare : public chare_base_ {
+ public:
   const Index& index(void) const {
     return index_view<Index>::decode(this->index_);
   }
@@ -211,7 +224,11 @@ struct chare : public chare_base_ {
   //        we could make this a typed proxy )
   const collection_index_t& collection(void) const { return this->parent_; }
 
-  const cmk::element_proxy<T> element_proxy(void) {
+  collection_proxy_base_<T> collection_proxy(void) const {
+    return collection_proxy_base_<T>(this->parent_);
+  }
+
+  cmk::element_proxy<T> element_proxy(void) const {
     return cmk::element_proxy<T>(this->parent_, this->index_);
   }
 };
