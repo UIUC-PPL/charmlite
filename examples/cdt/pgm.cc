@@ -69,10 +69,10 @@ class completion : public cmk::chare<completion, int> {
       std::get<1>(val).send(msg);
     } else {
       // contribute to the all_reduce with other participants
-      // TODO ( need to provide a tag if there are multiple reductions )
+      auto cb = cmk::callback::construct<receive_count_>(cmk::all);
       auto* count = new count_message(this->collection(), idx, status.lcount);
-      cmk::all_reduce<cmk::add<typename count_message::type>, receive_count_>(
-          count);
+      this->element_proxy().contribute<cmk::add<typename count_message::type>>(
+          count, cb);
     }
   }
 

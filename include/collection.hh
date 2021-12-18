@@ -1,6 +1,7 @@
 #ifndef __CMK_collection_HH__
 #define __CMK_collection_HH__
 
+#include "callback.hh"
 #include "chare.hh"
 #include "ep.hh"
 #include "locmgr.hh"
@@ -157,8 +158,37 @@ struct collection : public collection_base_ {
     reducer.received.emplace_back(msg);
     if (reducer.ready()) {
       // combine all messages
-
-      // send to downstream...
+      auto comb = combiner_for(ep.entry);
+      auto& recvd = reducer.received;
+      auto& lhs = recvd.front();
+      for (auto it = std::begin(recvd) + 1; it != std::end(recvd); it++) {
+        auto& rhs = *it;
+        auto* res = comb(lhs.get(), rhs.get());
+        pick_message_(lhs, rhs, res);
+        // combiner generated a new message
+        if (!lhs) {
+          // so keep the destination alive
+          res->has_continuation() = true;
+          auto* cont = res->continuation();
+          new (cont) destination(*(rhs->continuation()));
+          // then update lhs for the next iteration
+          lhs.reset(res);
+        }
+      }
+      // update result's destination (+ clear
+      // flags) then send it along
+      auto& down = reducer.downstream;
+      if (down.empty()) {
+        new (&(lhs->dst_)) destination(*(lhs->continuation()));
+        lhs->has_combiner() = lhs->has_continuation() = false;
+        cmk::send(lhs.release());
+      } else {
+        CmiAssert(down.size() == 1);
+        lhs->dst_.endpoint().chare = down.front();
+        this->deliver_later(lhs.release());
+      }
+      // erase the reducer
+      obj->reducers_.erase(search);
     }
   }
 
@@ -169,14 +199,18 @@ struct collection : public collection_base_ {
       auto& idx = obj->index_;
       auto up = this->locmgr_.upstream(idx);
       auto down = this->locmgr_.downstream(idx);
-      auto ins = reducers.emplace(idx, std::move(up), std::move(down));
+      auto ins = reducers.emplace(
+          std::piecewise_construct, std::forward_as_tuple(idx),
+          std::forward_as_tuple(std::move(up), std::move(down)));
       find = ins.first;
     }
     return find;
   }
 
   void handle_(const entry_record_* rec, T* obj, message* msg) {
-    if (msg->is_broadcast()) {
+    if (msg->has_combiner()) {
+      this->handle_reduction_message_(obj, msg);
+    } else if (msg->is_broadcast()) {
       auto* base = static_cast<chare_base_*>(obj);
       auto& idx = base->index_;
       auto& bcast = msg->dst_.endpoint().bcast;

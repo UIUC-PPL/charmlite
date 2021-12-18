@@ -17,9 +17,9 @@ struct chare_record_ {
   chare_record_(const char* name, std::size_t size)
       : name_(name), size_(size) {}
 
-  void* allocate(void) const { return ::operator new (this->size_); }
+  void* allocate(void) const { return ::operator new(this->size_); }
 
-  void deallocate(void* obj) const { ::operator delete (obj); }
+  void deallocate(void* obj) const { ::operator delete(obj); }
 };
 
 template <typename T>

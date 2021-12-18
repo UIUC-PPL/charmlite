@@ -57,7 +57,7 @@ class element_proxy_base_ {
 template <typename T>
 class element_proxy : public element_proxy_base_ {
  public:
-  friend class T;
+  friend T;
 
   element_proxy(element_proxy<T>&&) = default;
   element_proxy(const element_proxy<T>&) = default;
@@ -65,7 +65,7 @@ class element_proxy : public element_proxy_base_ {
       : element_proxy_base_(id, idx) {}
 
   template <typename... Args>
-  void insert(Args... args) {
+  void insert(Args... args) const {
     using arg_type = pack_helper_t<Args...>;
     auto* msg = message_extractor<arg_type>::get(args...);
     new (&(msg->dst_))
@@ -74,7 +74,7 @@ class element_proxy : public element_proxy_base_ {
   }
 
   template <typename Message, member_fn_t<T, Message> Fn>
-  void send(Message* msg) {
+  void send(Message* msg) const {
     new (&(msg->dst_)) destination(this->id_, this->idx_,
                                    entry<member_fn_t<T, Message>, Fn>());
     deliver(msg);
@@ -82,7 +82,7 @@ class element_proxy : public element_proxy_base_ {
 
  protected:
   template <combiner_t Combiner>
-  void contribute(message* msg, const callback& cb) {
+  void contribute(message* msg, const callback& cb) const {
     // set the contribution's combiner
     msg->has_combiner() = true;
     new (&(msg->dst_))
