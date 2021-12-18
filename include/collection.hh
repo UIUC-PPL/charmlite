@@ -141,9 +141,8 @@ struct collection : public collection_base_ {
     auto& ep = msg->dst_.endpoint();
     auto& idx = ep.chare;
     auto* obj = static_cast<chare_base_*>(this->lookup(idx));
-    // stamp the message with the reduction number
+    // stamp the message with a sequence number
     ep.bcast = ++(obj->last_redn_);
-    // and handle it!
     this->handle_reduction_message_(obj, msg);
   }
 
@@ -156,27 +155,28 @@ struct collection : public collection_base_ {
     auto search = this->get_reducer_(obj, redn);
     auto& reducer = search->second;
     reducer.received.emplace_back(msg);
+    // when we've received all expected messages
     if (reducer.ready()) {
-      // combine all messages
       auto comb = combiner_for(ep.entry);
       auto& recvd = reducer.received;
       auto& lhs = recvd.front();
       for (auto it = std::begin(recvd) + 1; it != std::end(recvd); it++) {
         auto& rhs = *it;
+        // combine them by the given function
         auto* res = comb(lhs.get(), rhs.get());
         pick_message_(lhs, rhs, res);
-        // combiner generated a new message
+        // if the function generated a new message
         if (!lhs) {
-          // so keep the destination alive
+          // update its continuation
           res->has_continuation() = true;
           auto* cont = res->continuation();
           new (cont) destination(*(rhs->continuation()));
-          // then update lhs for the next iteration
+          // then replace lhs for the next iteration
           lhs.reset(res);
         }
       }
-      // update result's destination (+ clear
-      // flags) then send it along
+      // update result's destination (and clear
+      // flags) so we can send it along
       auto& down = reducer.downstream;
       if (down.empty()) {
         new (&(lhs->dst_)) destination(*(lhs->continuation()));
@@ -187,16 +187,18 @@ struct collection : public collection_base_ {
         lhs->dst_.endpoint().chare = down.front();
         this->deliver_later(lhs.release());
       }
-      // erase the reducer
+      // erase the reducer (it's job is done)
       obj->reducers_.erase(search);
     }
   }
 
+  // get a chare's reducer, creating one if it doesn't already exist
   reducer_iterator_t get_reducer_(chare_base_* obj, bcast_id_t redn) {
     auto& reducers = obj->reducers_;
     auto find = reducers.find(redn);
     if (find == std::end(reducers)) {
       auto& idx = obj->index_;
+      // construct using most up-to-date knowledge of spanning tree
       auto up = this->locmgr_.upstream(idx);
       auto down = this->locmgr_.downstream(idx);
       auto ins = reducers.emplace(
@@ -208,7 +210,9 @@ struct collection : public collection_base_ {
   }
 
   void handle_(const entry_record_* rec, T* obj, message* msg) {
+    // if a message has a combiner...
     if (msg->has_combiner()) {
+      // then it's a reduction message
       this->handle_reduction_message_(obj, msg);
     } else if (msg->is_broadcast()) {
       auto* base = static_cast<chare_base_*>(obj);

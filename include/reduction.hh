@@ -4,6 +4,8 @@
 #include "callback.hh"
 #include "message.hh"
 
+// TODO ( converse collectives should be isolated/removed )
+
 namespace cmk {
 void* converse_combiner_(int* size, void* local, void** remote, int count) {
   auto* sum = static_cast<message*>(local);

@@ -165,6 +165,7 @@ inline bool operator==(const T *lhs, const std::unique_ptr<T> &rhs) {
   return lhs == rhs.get();
 }
 
+// helper function for combining the results of reductions
 template <typename A, typename B>
 inline void pick_message_(A &lhs, A &rhs, B res) {
   if (res == lhs) {
