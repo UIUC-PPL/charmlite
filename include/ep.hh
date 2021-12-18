@@ -12,12 +12,6 @@ inline const entry_record_ *record_for(entry_id_t id) {
   }
 }
 
-inline void invoke(void *self, entry_id_t id, void *msg) {
-  auto *rec = record_for(id);
-  CmiAssert(rec != nullptr);
-  (rec->fn_)(self, msg);
-}
-
 template <entry_fn_t Fn, bool Constructor>
 struct entry_fn_helper_ {
   static entry_id_t id_;

@@ -2,11 +2,13 @@
 #define __CMK_COMMMON_HH__
 
 #include <converse.h>
+#include <execinfo.h>
 
 #include <cstdint>
 #include <deque>
 #include <limits>
 #include <memory>
+#include <string>
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
@@ -61,6 +63,16 @@ struct entry_record_ {
 
   entry_record_(entry_fn_t fn, bool is_constructor)
       : fn_(fn), is_constructor_(is_constructor) {}
+
+  // helper function to be used for projections tracing
+  std::string name(void) const {
+    auto* fn = reinterpret_cast<void*>(this->fn_);
+    auto** names = backtrace_symbols(&fn, 1);
+    // free is only reqd when n ptrs > 1
+    return std::string(names[0]);
+  }
+
+  void invoke(void* obj, void* msg) const { (this->fn_)(obj, msg); }
 };
 
 /* general terminology :

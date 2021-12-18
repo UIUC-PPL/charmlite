@@ -82,7 +82,7 @@ class collection : public collection_base_ {
       auto ins = chares_.emplace(idx, ch);
       CmiAssertMsg(ins.second, "insertion did not occur!");
       // call constructor on chare
-      (rec->fn_)(ch, msg);
+      rec->invoke(ch, msg);
       // flush any messages we have for it
       flush_buffers(idx);
     } else {
@@ -234,7 +234,7 @@ class collection : public collection_base_ {
           this->deliver_later(clone);
         }
         // process the message locally
-        (rec->fn_)(obj, msg);
+        rec->invoke(obj, msg);
         // try flushing the buffers since...
         this->flush_buffers(idx);
       } else {
@@ -242,7 +242,7 @@ class collection : public collection_base_ {
         this->buffer_(msg);
       }
     } else {
-      (rec->fn_)(obj, msg);
+      rec->invoke(obj, msg);
     }
   }
 
