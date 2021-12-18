@@ -125,7 +125,7 @@ struct test : cmk::chare<test, int> {
     } else {
       // each pe will expect a message from each pe (inclusive)
       CmiPrintf("%d> producing %d value(s)...\n", CmiMyPe(), CmiNumPes());
-      detector.local_branch()->produce(this->collection(), CmiNumPes());
+      local->produce(this->collection(), CmiNumPes());
       // so send the messages
       cmk::group_proxy<test> col(this->collection());
       col.broadcast<cmk::message, &test::consume>(msg);
