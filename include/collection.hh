@@ -197,6 +197,31 @@ class collection : public collection_base_ {
     }
   }
 
+  void handle_broadcast_message_(const entry_record_* rec, chare_base_* obj,
+                                 message* msg) {
+    auto* base = static_cast<chare_base_*>(obj);
+    auto& idx = base->index_;
+    auto& bcast = msg->dst_.endpoint().bcast;
+    // broadcasts are processed in-order
+    if (bcast == (base->last_bcast_ + 1)) {
+      base->last_bcast_++;
+      auto children = this->locmgr_.upstream(idx);
+      // send a copy of the message to all our children
+      for (auto& child : children) {
+        auto* clone = msg->clone();
+        clone->dst_.endpoint().chare = child;
+        this->deliver_later(clone);
+      }
+      // process the message locally
+      rec->invoke(obj, msg);
+      // try flushing the buffers since...
+      this->flush_buffers(idx);
+    } else {
+      // we buffer out-of-order broadcasts
+      this->buffer_(msg);
+    }
+  }
+
   // get a chare's reducer, creating one if it doesn't already exist
   reducer_iterator_t get_reducer_(chare_base_* obj, bcast_id_t redn) {
     auto& reducers = obj->reducers_;
@@ -220,27 +245,7 @@ class collection : public collection_base_ {
       // then it's a reduction message
       this->handle_reduction_message_(obj, msg);
     } else if (msg->is_broadcast()) {
-      auto* base = static_cast<chare_base_*>(obj);
-      auto& idx = base->index_;
-      auto& bcast = msg->dst_.endpoint().bcast;
-      // broadcasts are processed in-order
-      if (bcast == (base->last_bcast_ + 1)) {
-        base->last_bcast_++;
-        auto children = this->locmgr_.upstream(idx);
-        // send a copy of the message to all our children
-        for (auto& child : children) {
-          auto* clone = msg->clone();
-          clone->dst_.endpoint().chare = child;
-          this->deliver_later(clone);
-        }
-        // process the message locally
-        rec->invoke(obj, msg);
-        // try flushing the buffers since...
-        this->flush_buffers(idx);
-      } else {
-        // we buffer out-of-order broadcasts
-        this->buffer_(msg);
-      }
+      this->handle_broadcast_message_(rec, obj, msg);
     } else {
       rec->invoke(obj, msg);
     }
