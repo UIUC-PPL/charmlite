@@ -13,7 +13,8 @@ namespace cmk {
 // broadcasts an exit message to all pes
 void exit(void) {
   auto* msg = new message();
-  new (&(msg->dst_)) destination(callback_helper_<exit>::id_, cmk::all);
+  new (&(msg->dst_))
+      destination(callback_helper_<message, exit>::id_, cmk::all);
   send(msg);
 }
 }  // namespace cmk

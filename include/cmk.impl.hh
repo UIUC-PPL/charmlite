@@ -59,20 +59,60 @@ static message_kind_t register_message_(void) {
 template <typename T>
 message_kind_t message_helper_<T>::kind_ = register_message_<T>();
 
-template <typename T, T t>
-static std::size_t register_function_(std::vector<T>& table) {
+// helper struct to erase type of combiners/callbacks
+template <typename Message, template <class> class Function,
+          Function<Message> Fn, typename Enable = void>
+struct function_wrapper_;
+
+template <template <class> class Function, Function<message> Fn>
+struct function_wrapper_<message, Function, Fn> {
+  // no type erasure needed for the "base" case
+  static constexpr Function<message> fn(void) { return Fn; }
+};
+
+template <typename Message, combiner_fn_t<Message> Fn>
+struct function_wrapper_<
+    Message, combiner_fn_t, Fn,
+    typename std::enable_if<!std::is_same<message, Message>::value>::type> {
+  static message* impl_(message* lhs, message* rhs) {
+    // ( result should be implicitly castable to message )
+    return Fn(static_cast<Message*>(lhs), static_cast<Message*>(rhs));
+  }
+
+  static constexpr combiner_fn_t<message> fn(void) {
+    return &(function_wrapper_<Message, combiner_fn_t, Fn>::impl_);
+  }
+};
+
+template <typename Message, callback_fn_t<Message> Fn>
+struct function_wrapper_<
+    Message, callback_fn_t, Fn,
+    typename std::enable_if<!std::is_same<message, Message>::value>::type> {
+  static void impl_(message* msg) { Fn(static_cast<Message*>(msg)); }
+
+  static constexpr callback_fn_t<message> fn(void) {
+    return &(function_wrapper_<Message, callback_fn_t, Fn>::impl_);
+  }
+};
+
+template <typename Message, template <class> class Function,
+          Function<Message> Fn>
+static std::size_t register_function_(std::vector<Function<message>>& table) {
+  // get a type-erased version of the function
+  constexpr auto fn = function_wrapper_<Message, Function, Fn>::fn();
+  // then register it
   auto id = table.size() + 1;
-  table.emplace_back(t);
+  table.emplace_back(fn);
   return id;
 }
 
-template <combiner_t Fn>
-combiner_id_t combiner_helper_<Fn>::id_ =
-    register_function_<combiner_t, Fn>(CsvAccess(combiner_table_));
+template <typename Message, combiner_fn_t<Message> Fn>
+combiner_id_t combiner_helper_<Message, Fn>::id_ =
+    register_function_<Message, combiner_fn_t, Fn>(CsvAccess(combiner_table_));
 
-template <callback_t Fn>
-callback_id_t callback_helper_<Fn>::id_ =
-    register_function_<callback_t, Fn>(CsvAccess(callback_table_));
+template <typename Message, callback_fn_t<Message> Fn>
+callback_id_t callback_helper_<Message, Fn>::id_ =
+    register_function_<Message, callback_fn_t, Fn>(CsvAccess(callback_table_));
 
 }  // namespace cmk
 

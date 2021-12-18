@@ -81,18 +81,18 @@ class element_proxy : public element_proxy_base_ {
   }
 
   template <typename Message, member_fn_t<T, Message> Fn>
-  cmk::callback callback(void) const {
-    return cmk::callback(this->id_, this->idx_,
-                         entry<member_fn_t<T, Message>, Fn>());
+  cmk::callback<Message> callback(void) const {
+    return cmk::callback<Message>(this->id_, this->idx_,
+                                  entry<member_fn_t<T, Message>, Fn>());
   }
 
  protected:
-  template <combiner_t Combiner>
-  void contribute(message* msg, const cmk::callback& cb) const {
+  template <typename Message, combiner_fn_t<Message> Combiner>
+  void contribute(Message* msg, const cmk::callback<Message>& cb) const {
     // set the contribution's combiner
     msg->has_combiner() = true;
-    new (&(msg->dst_))
-        destination(this->id_, this->idx_, combiner_helper_<Combiner>::id_);
+    new (&(msg->dst_)) destination(this->id_, this->idx_,
+                                   combiner_helper_<Message, Combiner>::id_);
     // set the contribution's continuation
     auto cont = msg->has_continuation();
     CmiAssertMsg(!cont, "continuation of contribution will be overriden");
@@ -119,9 +119,9 @@ class collection_proxy_base_ {
   }
 
   template <typename Message, member_fn_t<T, Message> Fn>
-  cmk::callback callback(void) const {
-    return cmk::callback(this->id_, chare_bcast_root_,
-                         entry<member_fn_t<T, Message>, Fn>());
+  cmk::callback<Message> callback(void) const {
+    return cmk::callback<Message>(this->id_, chare_bcast_root_,
+                                  entry<member_fn_t<T, Message>, Fn>());
   }
 
   template <typename Message, member_fn_t<T, Message> Fn>

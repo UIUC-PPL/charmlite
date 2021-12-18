@@ -16,9 +16,9 @@ void resume_main_(cmk::message*);
 class completion : public cmk::chare<completion, int> {
  public:
   struct count;
-  using detection_message =
-      cmk::data_message<std::tuple<cmk::collection_index_t, cmk::callback>>;
   using count_message = cmk::data_message<count>;
+  using detection_message = cmk::data_message<
+      std::tuple<cmk::collection_index_t, cmk::callback<cmk::message>>>;
 
   struct status {
     detection_message* msg;
@@ -77,8 +77,9 @@ class completion : public cmk::chare<completion, int> {
       auto cb = this->collection_proxy()
                     .callback<count_message, &completion::receive_count_>();
       auto* count = new count_message(idx, status.lcount);
-      this->element_proxy().contribute<cmk::add<typename count_message::type>>(
-          count, cb);
+      this->element_proxy()
+          .contribute<count_message, cmk::add<typename count_message::type>>(
+              count, cb);
     }
   }
 
@@ -145,7 +146,7 @@ struct test : cmk::chare<test, int> {
       // start completion detection if we haven't already
       if (!detection_started_) {
         // goal : wake up the main pe!
-        auto cb = cmk::callback::construct<resume_main_>(0);
+        auto cb = cmk::callback<cmk::message>::construct<resume_main_>(0);
         auto* dm = new completion::detection_message(this->collection(), cb);
         // (each pe could start its own completion detection
         //  but this checks that broadcasts are working!)

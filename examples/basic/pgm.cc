@@ -23,7 +23,7 @@ struct foo : public cmk::chare<foo, int> {
               msg->val, this->val + msg->val);
     // note -- this is a cross-pe reduction
     // (cross-chare reductions not yet implemented)
-    cmk::reduce<cmk::nop, cmk::exit>(msg);
+    cmk::reduce<cmk::message, cmk::nop, cmk::exit>(msg);
   }
 };
 

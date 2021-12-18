@@ -81,13 +81,15 @@ struct entry_record_ {
  */
 
 // TODO ( rename to callback_fn_t )
-using callback_t = void (*)(message*);
-using callback_table_t = std::vector<callback_t>;
+template <typename Message>
+using callback_fn_t = void (*)(Message*);
+using callback_table_t = std::vector<callback_fn_t<message>>;
 using callback_id_t = typename callback_table_t::size_type;
 
 // TODO ( rename to combiner_fn_t )
-using combiner_t = message* (*)(message*, message*);
-using combiner_table_t = std::vector<combiner_t>;
+template <typename Message>
+using combiner_fn_t = Message* (*)(Message*, Message*);
+using combiner_table_t = std::vector<combiner_fn_t<message>>;
 using combiner_id_t = typename combiner_table_t::size_type;
 
 using entry_table_t = std::vector<entry_record_>;
