@@ -4,6 +4,8 @@
 #include "callback.hh"
 #include "message.hh"
 
+// TODO ( converse collectives should be isolated/removed )
+
 namespace cmk {
 void* converse_combiner_(int* size, void* local, void** remote, int count) {
   auto* sum = static_cast<message*>(local);
@@ -12,18 +14,7 @@ void* converse_combiner_(int* size, void* local, void** remote, int count) {
     auto& lhs = sum;
     auto& rhs = reinterpret_cast<message*&>(remote[i]);
     auto* res = comb(lhs, rhs);
-    if (res == lhs) {
-      // result is OK
-      continue;
-    } else if (res == rhs) {
-      // result is remote -- so we have
-      // to swap lhs so it's freed as remote
-      std::swap(lhs, rhs);
-    } else {
-      // combiner alloc'd a new non-remote
-      // message so we have to free
-      message::free(lhs);
-    }
+    pick_message_(lhs, rhs, res);
   }
   *size = (int)sum->total_size_;
   return sum;

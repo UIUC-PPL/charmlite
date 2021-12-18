@@ -1,6 +1,7 @@
 #ifndef __CMK_MSG_HH__
 #define __CMK_MSG_HH__
 
+#include <array>
 #include <bitset>
 
 #include "common.hh"
@@ -18,24 +19,39 @@ using message_table_t = std::vector<message_record_>;
 using message_kind_t = typename message_table_t::size_type;
 CsvExtern(message_table_t, message_table_);
 
-constexpr std::size_t header_size = CmiMsgHeaderSizeBytes;
-
 template <typename T>
 struct message_helper_ {
   static message_kind_t kind_;
 };
 
-struct message {
-  char core_[header_size];
-  std::bitset<8> flags_;
-  // TODO ( think of better names? )
-  message_kind_t kind_;
+#define CMK_MESSAGE_FIELDS                       \
+  std::array<char, CmiMsgHeaderSizeBytes> core_; \
+  message_kind_t kind_;                          \
+  std::bitset<8> flags_;                         \
+  std::size_t total_size_;                       \
   destination dst_;
-  std::size_t total_size_;
+
+namespace {
+struct message_fields_ {
+  CMK_MESSAGE_FIELDS;
+};
+}  // namespace
+
+// pad the messages with extra room for a continuation
+constexpr auto reserve_align =
+    (sizeof(message_fields_) + sizeof(destination)) % ALIGN_BYTES;
+// TODO ( use std::byte if we upgrade )
+using aligned_reserve_t =
+    std::array<std::uint8_t, sizeof(destination) + reserve_align>;
+
+struct message {
+  CMK_MESSAGE_FIELDS;
+  aligned_reserve_t reserve_;
 
  private:
   static constexpr auto has_combiner_ = 0;
-  static constexpr auto has_collection_kind_ = has_combiner_ + 1;
+  static constexpr auto has_continuation_ = has_combiner_ + 1;
+  static constexpr auto has_collection_kind_ = has_continuation_ + 1;
 
  public:
   using flag_type = std::bitset<8>::reference;
@@ -50,18 +66,33 @@ struct message {
     CmiSetHandler(this, CpvAccess(deliver_handler_));
   }
 
-  flag_type has_combiner(void) { return this->flags_[has_combiner_]; }
-
-  flag_type has_collection_kind(void) {
-    return this->flags_[has_collection_kind_];
-  }
-
   combiner_id_t *combiner(void) {
     if (this->has_combiner()) {
       return reinterpret_cast<combiner_id_t *>(this->dst_.offset_());
     } else {
       return nullptr;
     }
+  }
+
+  destination *continuation(void) {
+    if (this->has_continuation()) {
+      return reinterpret_cast<destination *>(this->reserve_.data());
+    } else {
+      return nullptr;
+    }
+  }
+
+  flag_type has_combiner(void) { return this->flags_[has_combiner_]; }
+
+  flag_type has_continuation(void) { return this->flags_[has_continuation_]; }
+
+  flag_type has_collection_kind(void) {
+    return this->flags_[has_collection_kind_];
+  }
+
+  template <typename T>
+  static void free(std::unique_ptr<T> &msg) {
+    free(msg.release());
   }
 
   static void free(void *msg) {
@@ -88,6 +119,10 @@ struct message {
 
   bool is_broadcast(void) { return this->dst_.is_broadcast(); }
 };
+
+static_assert(sizeof(message) % ALIGN_BYTES == 0, "message unaligned");
+
+#undef CMK_MESSAGE_FIELDS
 
 template <typename T>
 struct plain_message : public message {
@@ -122,6 +157,28 @@ inline void send_helper_(int pe, message *msg) {
     CmiPushPE(pe, msg);
   } else {
     CmiSyncSendAndFree(pe, msg->total_size_, (char *)msg);
+  }
+}
+
+template <typename T>
+inline bool operator==(const T *lhs, const std::unique_ptr<T> &rhs) {
+  return lhs == rhs.get();
+}
+
+// helper function for combining the results of reductions
+template <typename A, typename B>
+inline void pick_message_(A &lhs, A &rhs, B res) {
+  if (res == lhs) {
+    // result is OK
+    return;
+  } else if (res == rhs) {
+    // result is remote -- so we have
+    // to swap lhs so it's freed as remote
+    std::swap(lhs, rhs);
+  } else {
+    // combiner alloc'd a new non-remote
+    // message so we have to free
+    message::free(lhs);
   }
 }
 }  // namespace cmk

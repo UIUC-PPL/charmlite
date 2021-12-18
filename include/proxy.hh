@@ -37,18 +37,35 @@ template <typename... Args>
 using pack_helper_t = typename pack_helper<Args...>::type;
 
 template <typename T>
-class element_proxy {
+class element_proxy;
+
+class element_proxy_base_ {
+ private:
   collection_index_t id_;
   chare_index_t idx_;
 
  public:
+  template <typename T>
+  friend class element_proxy;
+
+  element_proxy_base_(element_proxy_base_&&) = default;
+  element_proxy_base_(const element_proxy_base_&) = default;
+  element_proxy_base_(const collection_index_t& id, const chare_index_t& idx)
+      : id_(id), idx_(idx) {}
+};
+
+template <typename T>
+class element_proxy : public element_proxy_base_ {
+ public:
+  friend T;
+
   element_proxy(element_proxy<T>&&) = default;
   element_proxy(const element_proxy<T>&) = default;
   element_proxy(const collection_index_t& id, const chare_index_t& idx)
-      : id_(id), idx_(idx) {}
+      : element_proxy_base_(id, idx) {}
 
   template <typename... Args>
-  void insert(Args... args) {
+  void insert(Args... args) const {
     using arg_type = pack_helper_t<Args...>;
     auto* msg = message_extractor<arg_type>::get(args...);
     new (&(msg->dst_))
@@ -57,10 +74,26 @@ class element_proxy {
   }
 
   template <typename Message, member_fn_t<T, Message> Fn>
-  void send(Message* msg) {
+  void send(Message* msg) const {
     new (&(msg->dst_)) destination(this->id_, this->idx_,
                                    entry<member_fn_t<T, Message>, Fn>());
     deliver(msg);
+  }
+
+ protected:
+  template <combiner_t Combiner>
+  void contribute(message* msg, const callback& cb) const {
+    // set the contribution's combiner
+    msg->has_combiner() = true;
+    new (&(msg->dst_))
+        destination(this->id_, this->idx_, combiner_helper_<Combiner>::id_);
+    // set the contribution's continuation
+    auto cont = msg->has_continuation();
+    CmiAssertMsg(!cont, "continuation of contribution will be overriden");
+    cont = true;
+    cb.imprint(*(msg->continuation()));
+    // send the contribution...
+    cmk::lookup(this->id_)->contribute(msg);
   }
 };
 

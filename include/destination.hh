@@ -16,6 +16,7 @@ struct destination {
     chare_index_t chare;
     entry_id_t entry;
     // reserved for collection communication
+    // TODO ( so rename it as such! )
     bcast_id_t bcast;
   };
 
@@ -39,8 +40,8 @@ struct destination {
   destination(const collection_index_t& collection, const chare_index_t& chare,
               entry_id_t entry)
       : kind_(kEndpoint) {
-    new (&(this->impl_.endpoint_))
-        s_endpoint_{.collection = collection, .chare = chare, .entry = entry};
+    new (&(this->impl_.endpoint_)) s_endpoint_{
+        .collection = collection, .chare = chare, .entry = entry, .bcast = 0};
   }
 
   inline s_callback_fn_& callback_fn(void) {

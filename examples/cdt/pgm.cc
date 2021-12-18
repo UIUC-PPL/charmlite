@@ -9,6 +9,9 @@
 
 #include <cmk.hh>
 
+// a callback to resume the main thread
+void resume_main_(cmk::message*);
+
 // a chare that uses an int for its index
 class completion : public cmk::chare<completion, int> {
  public:
@@ -65,14 +68,18 @@ class completion : public cmk::chare<completion, int> {
     auto& idx = std::get<0>(val);
     auto& status = this->get_status(idx, msg);
     if (status.complete) {
-      // invoke the callback when we complete
-      std::get<1>(val).send(msg);
+      // the root invokes the callback
+      if (this->index() == 0) {
+        std::get<1>(val).send(msg);
+      }
+      // and, just to be safe, reset our status!
+      new (&status) completion::status(nullptr);
     } else {
       // contribute to the all_reduce with other participants
-      // TODO ( need to provide a tag if there are multiple reductions )
+      auto cb = cmk::callback::construct<receive_count_>(cmk::all);
       auto* count = new count_message(this->collection(), idx, status.lcount);
-      cmk::all_reduce<cmk::add<typename count_message::type>, receive_count_>(
-          count);
+      this->element_proxy().contribute<cmk::add<typename count_message::type>>(
+          count, cb);
     }
   }
 
@@ -104,13 +111,17 @@ struct test : cmk::chare<test, int> {
   bool detection_started_;
 
   test(cmk::data_message<cmk::group_proxy<completion>>* msg)
-      : detector(msg->value()), detection_started_(false) {}
+      : detector(msg->value()) {}
 
   void produce(cmk::message* msg) {
+    // reset completion detection status
+    // (only at "root" element)
+    this->detection_started_ = (this->index() != 0);
+    // check whether we have a local branch
     auto* local = detector.local_branch();
     if (local == nullptr) {
       auto elt = this->element_proxy();
-      // put the message back to await local branch creation
+      // put the message back to if we don't
       elt.send<cmk::message, &test::produce>(msg);
     } else {
       // each pe will expect a message from each pe (inclusive)
@@ -133,15 +144,16 @@ struct test : cmk::chare<test, int> {
       CmiPrintf("%d> consuming a value...\n", CmiMyPe());
       local->consume(this->collection());
 
-      // start completion detection at "root" if we haven't already
-      if (!detection_started_ && (this->index() == 0)) {
-        // call exit on all pes when we complete!
-        auto cb = cmk::callback::construct<cmk::exit>(cmk::all);
+      // start completion detection if we haven't already
+      if (!detection_started_) {
+        // goal : wake up the main pe!
+        auto cb = cmk::callback::construct<resume_main_>(0);
+        auto* dm = 
+            new completion::detection_message(this->collection(), cb);
         // (each pe could start its own completion detection
         //  but this checks that broadcasts are working!)
         detector.broadcast<completion::detection_message,
-                           &completion::start_detection>(
-            new completion::detection_message(this->collection(), cb));
+                           &completion::start_detection>(dm);
 
         detection_started_ = true;
       }
@@ -151,15 +163,30 @@ struct test : cmk::chare<test, int> {
   }
 };
 
+CthThread th;
+
+void resume_main_(cmk::message* msg) { CthAwaken(th); }
+
 int main(int argc, char** argv) {
   cmk::initialize(argc, argv);
   if (CmiMyNode() == 0) {
+    // assert that this test will not explode
+    th = CthSelf();
+    CmiAssert(th && CthIsSuspendable(th));
     // establish detector and participant groups
     auto detector = cmk::group_proxy<completion>::construct();
     auto* dm = new cmk::data_message<decltype(detector)>(detector);
     auto elts = cmk::group_proxy<test>::construct(dm);
-    // send each element a "produce" message to start the process
-    elts.broadcast<cmk::message, &test::produce>(new cmk::message);
+    auto nIts = CmiNumPes();
+    for (auto it = 0; it < nIts; it++) {
+      // send each element a "produce" message to start the process
+      elts.broadcast<cmk::message, &test::produce>(new cmk::message);
+      // sleep until detection completes
+      CthSuspend();
+      CmiPrintf("main> iteration %d complete!\n", it + 1);
+    }
+    // all done...
+    cmk::exit();
   }
   cmk::finalize();
   return 0;

@@ -1,6 +1,7 @@
 #ifndef __CMK_collection_HH__
 #define __CMK_collection_HH__
 
+#include "callback.hh"
 #include "chare.hh"
 #include "ep.hh"
 #include "locmgr.hh"
@@ -13,6 +14,7 @@ struct collection_base_ {
   virtual ~collection_base_() = default;
   virtual void* lookup(const chare_index_t&) = 0;
   virtual void deliver(message* msg, bool immediate) = 0;
+  virtual void contribute(message* msg) = 0;
 
   template <typename T>
   inline T* lookup(const chare_index_t& idx) {
@@ -135,9 +137,84 @@ struct collection : public collection_base_ {
     }
   }
 
+  virtual void contribute(message* msg) override {
+    auto& ep = msg->dst_.endpoint();
+    auto& idx = ep.chare;
+    auto* obj = static_cast<chare_base_*>(this->lookup(idx));
+    // stamp the message with a sequence number
+    ep.bcast = ++(obj->last_redn_);
+    this->handle_reduction_message_(obj, msg);
+  }
+
  private:
+  using reducer_iterator_t = typename chare_base_::reducer_map_t::iterator;
+
+  void handle_reduction_message_(chare_base_* obj, message* msg) {
+    auto& ep = msg->dst_.endpoint();
+    auto& redn = ep.bcast;
+    auto search = this->get_reducer_(obj, redn);
+    auto& reducer = search->second;
+    reducer.received.emplace_back(msg);
+    // when we've received all expected messages
+    if (reducer.ready()) {
+      auto comb = combiner_for(ep.entry);
+      auto& recvd = reducer.received;
+      auto& lhs = recvd.front();
+      for (auto it = std::begin(recvd) + 1; it != std::end(recvd); it++) {
+        auto& rhs = *it;
+        // combine them by the given function
+        auto* res = comb(lhs.get(), rhs.get());
+        pick_message_(lhs, rhs, res);
+        // if the function generated a new message
+        if (!lhs) {
+          // update its continuation
+          res->has_continuation() = true;
+          auto* cont = res->continuation();
+          new (cont) destination(*(rhs->continuation()));
+          // then replace lhs for the next iteration
+          lhs.reset(res);
+        }
+      }
+      // update result's destination (and clear
+      // flags) so we can send it along
+      auto& down = reducer.downstream;
+      if (down.empty()) {
+        new (&(lhs->dst_)) destination(*(lhs->continuation()));
+        lhs->has_combiner() = lhs->has_continuation() = false;
+        cmk::send(lhs.release());
+      } else {
+        CmiAssert(down.size() == 1);
+        lhs->dst_.endpoint().chare = down.front();
+        this->deliver_later(lhs.release());
+      }
+      // erase the reducer (it's job is done)
+      obj->reducers_.erase(search);
+    }
+  }
+
+  // get a chare's reducer, creating one if it doesn't already exist
+  reducer_iterator_t get_reducer_(chare_base_* obj, bcast_id_t redn) {
+    auto& reducers = obj->reducers_;
+    auto find = reducers.find(redn);
+    if (find == std::end(reducers)) {
+      auto& idx = obj->index_;
+      // construct using most up-to-date knowledge of spanning tree
+      auto up = this->locmgr_.upstream(idx);
+      auto down = this->locmgr_.downstream(idx);
+      auto ins = reducers.emplace(
+          std::piecewise_construct, std::forward_as_tuple(idx),
+          std::forward_as_tuple(std::move(up), std::move(down)));
+      find = ins.first;
+    }
+    return find;
+  }
+
   void handle_(const entry_record_* rec, T* obj, message* msg) {
-    if (msg->is_broadcast()) {
+    // if a message has a combiner...
+    if (msg->has_combiner()) {
+      // then it's a reduction message
+      this->handle_reduction_message_(obj, msg);
+    } else if (msg->is_broadcast()) {
       auto* base = static_cast<chare_base_*>(obj);
       auto& idx = base->index_;
       auto& bcast = msg->dst_.endpoint().bcast;
