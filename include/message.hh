@@ -118,6 +118,8 @@ struct message {
     return CmiAlloc(sz);
   }
 
+  void operator delete(void *blk, std::size_t sz) { CmiFree(blk); }
+
   void *operator new(std::size_t sz) { return CmiAlloc(sz); }
 
   void operator delete(void *blk) { CmiFree(blk); }

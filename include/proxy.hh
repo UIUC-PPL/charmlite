@@ -133,6 +133,12 @@ class collection_proxy_base_ {
   }
 
   operator collection_index_t(void) const { return this->id_; }
+
+ protected:
+  static void next_index_(collection_index_t& idx) {
+    new (&idx) collection_index_t{(std::uint32_t)CmiMyPe(),
+                                  CpvAccess(local_collection_count_)++};
+  }
 };
 
 template <typename T>
@@ -145,24 +151,62 @@ class collection_proxy : public collection_proxy_base_<T> {
 
   collection_proxy(const collection_index_t& id) : base_type(id) {}
 
+  template <typename Message, template <class> class Mapper = default_mapper>
+  static collection_proxy<T> construct(Message* a_msg,
+                                       const options_type& opts) {
+    collection_index_t id;
+    base_type::next_index_(id);
+    new (&a_msg->dst_)
+        destination(id, chare_bcast_root_, constructor<T, Message>());
+    call_construtor_<Mapper>(id, &opts, a_msg);
+    return collection_proxy<T>(id);
+  }
+
   // TODO ( disable using this with reserved mappers (i.e., node/group) )
   template <template <class> class Mapper = default_mapper>
-  static collection_proxy<T> construct(const options_type& opts = {}) {
-    collection_index_t id{(std::uint32_t)CmiMyPe(),
-                          CpvAccess(local_collection_count_)++};
-    auto kind = collection_helper_<collection<T, Mapper>>::kind_;
-    auto offset = sizeof(message);
-    auto* msg = new (offset + sizeof(options_type)) message();
-    auto* m_opts = reinterpret_cast<options_type*>((char*)msg + offset);
-    new (m_opts) options_type(opts);
-    new (&msg->dst_) destination(id, cmk::all, kind);
-    msg->total_size_ += sizeof(options_type);
-    msg->has_collection_kind() = true;
-    CmiSyncBroadcastAllAndFree(msg->total_size_, (char*)msg);
+  static collection_proxy<T> construct(const options_type& opts) {
+    collection_index_t id;
+    base_type::next_index_(id);
+    auto* a_msg = new message;
+    new (&a_msg->dst_)
+        destination(id, chare_bcast_root_, constructor<T, void>());
+    call_construtor_<Mapper>(id, &opts, a_msg);
+    return collection_proxy<T>(id);
+  }
+
+  template <template <class> class Mapper = default_mapper>
+  static collection_proxy<T> construct(void) {
+    collection_index_t id;
+    base_type::next_index_(id);
+    call_construtor_<Mapper>(id, nullptr, nullptr);
     return collection_proxy<T>(id);
   }
 
   void done_inserting(void) {}
+
+ private:
+  template <template <class> class Mapper = default_mapper>
+  static void call_construtor_(const collection_index_t& id,
+                               const options_type* opts, message* a_msg) {
+    auto kind = collection_helper_<collection<T, Mapper>>::kind_;
+    auto offset = sizeof(message);
+    auto a_sz = a_msg ? a_msg->total_size_ : 0;
+    auto* msg = new (offset + sizeof(options_type)) message();
+    auto* m_opts = reinterpret_cast<options_type*>((char*)msg + offset);
+    offset += sizeof(options_type);
+    new (&msg->dst_) destination(id, chare_bcast_root_, kind);
+    if (opts) {
+      new (m_opts) options_type(*opts);
+      CmiAssert(a_msg);
+      memcpy((char*)msg + offset, a_msg, a_msg->total_size_);
+    } else {
+      new (m_opts) options_type();
+      CmiAssert(a_msg == nullptr);
+    }
+    msg->total_size_ += (a_sz + sizeof(options_type));
+    msg->has_collection_kind() = true;
+    CmiSyncBroadcastAllAndFree(msg->total_size_, (char*)msg);
+  }
 };
 
 template <typename T>
@@ -184,8 +228,8 @@ class group_proxy : public collection_proxy_base_<T> {
 
   template <typename... Args>
   static group_proxy<T> construct(Args... args) {
-    collection_index_t id{(std::uint32_t)CmiMyPe(),
-                          ++CpvAccess(local_collection_count_)};
+    collection_index_t id;
+    base_type::next_index_(id);
     auto* a_msg = ([&](void) -> message* {
       using arg_type = pack_helper_t<Args...>;
       auto* msg = message_extractor<arg_type>::get(args...);
