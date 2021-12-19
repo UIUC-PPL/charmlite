@@ -34,6 +34,9 @@ static collection_base_* construct_collection_(
     const message* msg) {
   using collection_type = collection<T, Mapper>;
   using index_type = typename collection_type::index_type;
+  static_assert(sizeof(collection_options<index_type>) ==
+                    sizeof(collection_options_base_),
+                "specializations not allowed to vary in size wrt base");
   return new collection_type(
       id, static_cast<const collection_options<index_type>&>(opts), msg);
 }
