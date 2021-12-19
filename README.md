@@ -14,7 +14,7 @@ Status:
             - [Hypercomm implementation.](https://github.com/jszaday/hypercomm/blob/main/include/hypercomm/tree_builder/tree_builder.hpp)
     - Reductions currently rely on Converse:
         - This means contributions can't be made out-of-order!
-- No support for node/groups yet.
+- No support for node-groups yet.
     - Very easy to do: add `<bool NodeLevel>` to existing group constructs.
 
 Overall... need more examples; feel free to _try_ porting your favorite example. (Be aware of collection communications limitations.)
