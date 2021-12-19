@@ -35,7 +35,22 @@ class collection : public collection_base_ {
  public:
   static_assert(std::is_base_of<chare_base_, T>::value, "expected a chare!");
 
-  collection(const collection_index_t& id) : collection_base_(id) {}
+  collection(const collection_index_t& id, const message* msg)
+      : collection_base_(id) {
+    // TODO ( extract this out of the locmgr or put it into mapper )
+    //      ( best place would be somewhere that knows index-type  )
+    auto seeds = this->locmgr_.seeds();
+    if (msg) {
+      // deliver a copy of the message to all "seeds"
+      for (auto& seed : seeds) {
+        auto* clone = msg->clone();
+        clone->dst_.endpoint().chare = seed;
+        this->deliver_now(clone);
+      }
+    } else {
+      CmiEnforceMsg(seeds.empty(), "cannot seed collection");
+    }
+  }
 
   virtual void* lookup(const chare_index_t& idx) override {
     auto find = this->chares_.find(idx);

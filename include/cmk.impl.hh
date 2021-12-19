@@ -29,8 +29,9 @@ template <typename T>
 chare_kind_t chare_kind_helper_<T>::kind_ = register_chare_<T>();
 
 template <typename T, typename Mapper>
-static collection_base_* construct_collection_(const collection_index_t& id) {
-  return new collection<T, Mapper>(id);
+static collection_base_* construct_collection_(const collection_index_t& id,
+                                               const message* msg) {
+  return new collection<T, Mapper>(id, msg);
 }
 
 template <typename T, typename Mapper>

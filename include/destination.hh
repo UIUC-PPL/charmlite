@@ -69,6 +69,31 @@ struct destination {
     }
   }
 
+  operator std::string(void) const {
+    std::stringstream ss;
+    ss << "destination(";
+    switch (kind_) {
+      case kCallback: {
+        auto& cb = this->impl_.callback_fn_;
+        ss << "cb=" << cb.id << ",";
+        ss << "pe=" << cb.pe;
+        break;
+      }
+      case kEndpoint: {
+        auto& ep = this->impl_.endpoint_;
+        ss << (std::string)ep.collection << ",";
+        // ss << "index=" << ep.chare << ",";
+        ss << "entry=" << ep.entry;
+        break;
+      }
+      default:
+        ss << "???";
+        break;
+    }
+    ss << ")";
+    return ss.str();
+  }
+
  private:
   // message uses this to store data inside the union
   // when it only needs the collection id!

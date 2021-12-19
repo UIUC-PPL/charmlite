@@ -113,6 +113,11 @@ struct message {
     return (message *)CmiCopyMsg((char *)this, this->total_size_);
   }
 
+  void *operator new(std::size_t count, std::size_t sz) {
+    CmiAssert(sz >= sizeof(message));
+    return CmiAlloc(sz);
+  }
+
   void *operator new(std::size_t sz) { return CmiAlloc(sz); }
 
   void operator delete(void *blk) { CmiFree(blk); }

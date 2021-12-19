@@ -74,7 +74,12 @@ inline void deliver_to_endpoint_(message* msg, bool immediate) {
   if (msg->has_collection_kind()) {
     auto kind = (collection_kind_t)ep.entry;
     auto& rec = CsvAccess(collection_kinds_)[kind - 1];
-    auto* obj = rec(col);
+    // determine whether or not the creation message
+    // is attached to an argument message
+    auto* arg = (msg->total_size_ == sizeof(message))
+                    ? nullptr
+                    : ((char*)msg + sizeof(message));
+    auto* obj = rec(col, reinterpret_cast<message*>(arg));
     auto ins = tab.emplace(col, obj);
     CmiAssertMsg(ins.second, "insertion did not occur!");
     auto find = buf.find(col);

@@ -8,7 +8,7 @@
 #include <deque>
 #include <limits>
 #include <memory>
-#include <string>
+#include <sstream>
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
@@ -35,10 +35,19 @@ struct collection_index_t {
     return (reinterpret_cast<const std::size_t&>(*this) ==
             reinterpret_cast<const std::size_t&>(other));
   }
+
+  inline operator std::string(void) const {
+    std::stringstream ss;
+    ss << "collection(";
+    ss << "pe=" << this->pe_ << ",";
+    ss << "id=" << this->id_;
+    ss << ")";
+    return ss.str();
+  }
 };
 
 using collection_constructor_t =
-    collection_base_* (*)(const collection_index_t&);
+    collection_base_* (*)(const collection_index_t&, const message*);
 
 template <typename T>
 struct message_deleter_;

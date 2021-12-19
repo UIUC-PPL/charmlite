@@ -181,35 +181,28 @@ class group_proxy : public collection_proxy_base_<T> {
   static group_proxy<T> construct(Args... args) {
     collection_index_t id{(std::uint32_t)CmiMyPe(),
                           ++CpvAccess(local_collection_count_)};
-    // TODO ( need to join these with some sort of "create local" thing )
-    {
-      auto kind = collection_helper_<collection<T, group_mapper>>::kind_;
-      auto* msg = new message();
-      new (&msg->dst_) destination(id, chare_bcast_root_, kind);
-      msg->has_collection_kind() = true;
-      CmiSyncBroadcastAllAndFree(msg->total_size_, (char*)msg);
-    }
-    {
+    auto* a_msg = ([&](void) -> message* {
       using arg_type = pack_helper_t<Args...>;
       auto* msg = message_extractor<arg_type>::get(args...);
       new (&msg->dst_)
           destination(id, chare_bcast_root_, constructor<T, arg_type>());
-      broadcast_helper_(msg);
+      return msg;
+    })();
+    {
+      auto kind = collection_helper_<collection<T, group_mapper>>::kind_;
+      auto* msg = new (sizeof(message) + a_msg->total_size_) message();
+      // update properties of creation message
+      new (&msg->dst_) destination(id, chare_bcast_root_, kind);
+      msg->has_collection_kind() = true;
+      msg->total_size_ += a_msg->total_size_;
+      // copy the argument message onto it
+      memcpy((char*)msg + sizeof(message), a_msg, a_msg->total_size_);
+      // then free a_msg since we're done with it
+      message::free(a_msg);
+      // broadcast the conjoined message to all PEs
+      CmiSyncBroadcastAllAndFree(msg->total_size_, (char*)msg);
     }
     return group_proxy<T>(id);
-  }
-
- private:
-  // TODO ( use spanning tree )
-  static void broadcast_helper_(message* msg) {
-    auto n = CmiNumPes();
-    auto& ep = msg->dst_.endpoint();
-    for (auto i = 1; i < n; i++) {
-      ep.chare = index_view<index_type>::encode(i);
-      CmiSyncSend(i, msg->total_size_, (char*)msg);
-    }
-    ep.chare = index_view<index_type>::encode(0);
-    CmiSyncSendAndFree(0, msg->total_size_, (char*)msg);
   }
 };
 
