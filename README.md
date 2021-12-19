@@ -16,6 +16,6 @@ Status:
     - Very easy to do: add `<bool NodeLevel>` to existing group constructs.
 - Add support for chare-arrays with a fixed _or_ initial size.
 - Add support for "location records" that indicate migratibility.
-    - How should user's specify whether elements can/not migrate?
+    - How should users specify whether elements can/not migrate?
 
 Overall... need more examples; feel free to _try_ porting your favorite example. (Be aware of collection communications limitations.)
