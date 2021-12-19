@@ -28,20 +28,24 @@ static chare_kind_t register_chare_(void) {
 template <typename T>
 chare_kind_t chare_kind_helper_<T>::kind_ = register_chare_<T>();
 
-template <typename T, typename Mapper>
-static collection_base_* construct_collection_(const collection_index_t& id,
-                                               const message* msg) {
-  return new collection<T, Mapper>(id, msg);
+template <typename T, template <class> class Mapper>
+static collection_base_* construct_collection_(
+    const collection_index_t& id, const collection_options_base_& opts,
+    const message* msg) {
+  using collection_type = collection<T, Mapper>;
+  using index_type = typename collection_type::index_type;
+  return new collection_type(
+      id, static_cast<const collection_options<index_type>&>(opts), msg);
 }
 
-template <typename T, typename Mapper>
+template <typename T, template <class> class Mapper>
 static collection_kind_t register_collection_(void) {
   auto id = CsvAccess(collection_kinds_).size() + 1;
   CsvAccess(collection_kinds_).emplace_back(&construct_collection_<T, Mapper>);
   return id;
 }
 
-template <typename T, typename Mapper>
+template <typename T, template <class> class Mapper>
 collection_kind_t collection_helper_<collection<T, Mapper>>::kind_ =
     register_collection_<T, Mapper>();
 

@@ -141,17 +141,22 @@ class collection_proxy : public collection_proxy_base_<T> {
 
  public:
   using index_type = typename base_type::index_type;
+  using options_type = collection_options<index_type>;
 
   collection_proxy(const collection_index_t& id) : base_type(id) {}
 
   // TODO ( disable using this with reserved mappers (i.e., node/group) )
-  template <typename Mapper = default_mapper>
-  static collection_proxy<T> construct(void) {
+  template <template <class> class Mapper = default_mapper>
+  static collection_proxy<T> construct(const options_type& opts = {}) {
     collection_index_t id{(std::uint32_t)CmiMyPe(),
                           CpvAccess(local_collection_count_)++};
     auto kind = collection_helper_<collection<T, Mapper>>::kind_;
-    auto* msg = new message();
+    auto offset = sizeof(message);
+    auto* msg = new (offset + sizeof(options_type)) message();
+    auto* m_opts = reinterpret_cast<options_type*>((char*)msg + offset);
+    new (m_opts) options_type(opts);
     new (&msg->dst_) destination(id, cmk::all, kind);
+    msg->total_size_ += sizeof(options_type);
     msg->has_collection_kind() = true;
     CmiSyncBroadcastAllAndFree(msg->total_size_, (char*)msg);
     return collection_proxy<T>(id);
@@ -189,14 +194,21 @@ class group_proxy : public collection_proxy_base_<T> {
       return msg;
     })();
     {
+      using options_type = collection_options<int>;
       auto kind = collection_helper_<collection<T, group_mapper>>::kind_;
-      auto* msg = new (sizeof(message) + a_msg->total_size_) message();
+      auto offset = sizeof(message) + sizeof(options_type);
+      auto total_size = offset + a_msg->total_size_;
+      auto* msg = new (total_size) message();
       // update properties of creation message
       new (&msg->dst_) destination(id, chare_bcast_root_, kind);
       msg->has_collection_kind() = true;
-      msg->total_size_ += a_msg->total_size_;
+      msg->total_size_ = total_size;
+      // set the bounds for the collection
+      auto* opts =
+          reinterpret_cast<options_type*>((char*)msg + sizeof(message));
+      new (opts) options_type(CmiNumPes());
       // copy the argument message onto it
-      memcpy((char*)msg + sizeof(message), a_msg, a_msg->total_size_);
+      memcpy((char*)msg + offset, a_msg, a_msg->total_size_);
       // then free a_msg since we're done with it
       message::free(a_msg);
       // broadcast the conjoined message to all PEs

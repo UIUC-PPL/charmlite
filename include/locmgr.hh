@@ -6,11 +6,17 @@
 #include "common.hh"
 
 namespace cmk {
+
+template <typename Index>
 struct default_mapper {
   int pe_for(const chare_index_t& idx) const { return (idx % CmiNumPes()); }
 };
 
-struct group_mapper : public default_mapper {};
+template <typename Index>
+struct group_mapper;
+
+template <>
+struct group_mapper<int> : public default_mapper<int> {};
 
 template <typename Mapper>
 class locmgr;
@@ -29,8 +35,6 @@ class locmgr_base_ {
 template <typename Mapper>
 class locmgr : public locmgr_base_<Mapper> {
  public:
-  std::vector<chare_index_t> seeds(void) const { return {}; }
-
   // NOTE ( these methods will have to be expanded if/when
   //        we add support for sections. )
   chare_index_t root(void) const { CmiAbort("not implemented."); }
@@ -45,12 +49,8 @@ class locmgr : public locmgr_base_<Mapper> {
 };
 
 template <>
-class locmgr<group_mapper> : public locmgr_base_<group_mapper> {
+class locmgr<group_mapper<int>> : public locmgr_base_<group_mapper<int>> {
  public:
-  std::vector<chare_index_t> seeds(void) const {
-    return {index_view<int>::encode(CmiMyPe())};
-  }
-
   chare_index_t root(void) const {
     CmiAssert(CmiSpanTreeParent(0) < 0);
     return index_view<int>::encode(0);

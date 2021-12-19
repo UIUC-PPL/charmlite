@@ -1,7 +1,7 @@
 #ifndef __CMK_CHARE_HH__
 #define __CMK_CHARE_HH__
 
-#include "common.hh"
+#include "options.hh"
 
 namespace cmk {
 
@@ -36,7 +36,7 @@ struct property_setter_ {
 template <typename T, typename Index>
 class chare;
 
-template <typename T, typename Mapper>
+template <typename T, template <class> class Mapper>
 class collection;
 
 struct reducer_ {
@@ -67,25 +67,11 @@ struct chare_base_ {
   template <typename T, typename Index>
   friend class chare;
 
-  template <typename T, typename Mapper>
+  template <typename T, template <class> class Mapper>
   friend class collection;
 
   template <typename T, typename Enable>
   friend struct property_setter_;
-};
-
-template <typename T, typename Enable = void>
-struct index_view {
-  static_assert(sizeof(T) <= sizeof(chare_index_t),
-                "index must fit in constraints!");
-
-  static const T& decode(const chare_index_t& idx) {
-    return reinterpret_cast<const T&>(idx);
-  }
-
-  static chare_index_t encode(const T& idx) {
-    return static_cast<chare_index_t>(idx);
-  }
 };
 
 template <typename T>

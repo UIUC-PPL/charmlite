@@ -25,9 +25,13 @@ class collection_base_ {
   }
 };
 
-template <typename T, typename Mapper>
+template <typename T, template <class> class Mapper>
 class collection : public collection_base_ {
-  locmgr<Mapper> locmgr_;
+ public:
+  using index_type = index_for_t<T>;
+
+ private:
+  locmgr<Mapper<index_type>> locmgr_;
 
   std::unordered_map<chare_index_t, message_buffer_t> buffers_;
   std::unordered_map<chare_index_t, std::unique_ptr<T>> chares_;
@@ -35,20 +39,26 @@ class collection : public collection_base_ {
  public:
   static_assert(std::is_base_of<chare_base_, T>::value, "expected a chare!");
 
-  collection(const collection_index_t& id, const message* msg)
+  collection(const collection_index_t& id,
+             const collection_options<index_type>& opts, const message* msg)
       : collection_base_(id) {
-    // TODO ( extract this out of the locmgr or put it into mapper )
-    //      ( best place would be somewhere that knows index-type  )
-    auto seeds = this->locmgr_.seeds();
+    // need valid message and options or neither
+    CmiEnforceMsg(((bool)opts == (bool)msg), "cannot seed collection");
     if (msg) {
+      auto& end = opts.end();
+      auto& step = opts.step();
       // deliver a copy of the message to all "seeds"
-      for (auto& seed : seeds) {
-        auto* clone = msg->clone();
-        clone->dst_.endpoint().chare = seed;
-        this->deliver_now(clone);
+      for (auto seed = opts.start(); seed != end; seed += step) {
+        auto view = index_view<index_type>::encode(seed);
+        // NOTE ( I'm pretty sure this is no worse than what Charm )
+        //      ( does vis-a-vis CKARRAYMAP_POPULATE_INITIAL       )
+        // TODO ( that said, it should be elim'd for node/groups   )
+        if (this->locmgr_.pe_for(view) == CmiMyPe()) {
+          auto* clone = msg->clone();
+          clone->dst_.endpoint().chare = view;
+          this->deliver_now(clone);
+        }
       }
-    } else {
-      CmiEnforceMsg(seeds.empty(), "cannot seed collection");
     }
   }
 
@@ -275,7 +285,7 @@ class collection : public collection_base_ {
 template <typename T>
 struct collection_helper_;
 
-template <typename T, typename Mapper>
+template <typename T, template <class> class Mapper>
 struct collection_helper_<collection<T, Mapper>> {
   static collection_kind_t kind_;
 };

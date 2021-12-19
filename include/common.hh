@@ -22,6 +22,8 @@ struct chare_record_;
 template <typename T>
 class element_proxy;
 
+class collection_options_base_;
+
 class collection_base_;
 
 template <typename T>
@@ -47,7 +49,8 @@ struct collection_index_t {
 };
 
 using collection_constructor_t =
-    collection_base_* (*)(const collection_index_t&, const message*);
+    collection_base_* (*)(const collection_index_t&,
+                          const collection_options_base_&, const message*);
 
 template <typename T>
 struct message_deleter_;

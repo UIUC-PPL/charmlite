@@ -4,6 +4,9 @@
 #include "proxy.hh"
 
 namespace cmk {
+// these can be nix'd when we upgrade to c++17
+constexpr int default_options<int>::start;
+constexpr int default_options<int>::step;
 
 CsvDeclare(entry_table_t, entry_table_);
 CsvDeclare(chare_table_t, chare_table_);
@@ -76,10 +79,11 @@ inline void deliver_to_endpoint_(message* msg, bool immediate) {
     auto& rec = CsvAccess(collection_kinds_)[kind - 1];
     // determine whether or not the creation message
     // is attached to an argument message
-    auto* arg = (msg->total_size_ == sizeof(message))
-                    ? nullptr
-                    : ((char*)msg + sizeof(message));
-    auto* obj = rec(col, reinterpret_cast<message*>(arg));
+    auto* opts = (char*)msg + sizeof(message);
+    auto offset = sizeof(message) + sizeof(collection_options_base_);
+    auto* arg = (msg->total_size_ == offset) ? nullptr : ((char*)msg + offset);
+    auto* obj = rec(col, *(reinterpret_cast<collection_options_base_*>(opts)),
+                    reinterpret_cast<message*>(arg));
     auto ins = tab.emplace(col, obj);
     CmiAssertMsg(ins.second, "insertion did not occur!");
     auto find = buf.find(col);
