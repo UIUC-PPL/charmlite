@@ -18,7 +18,7 @@ CsvDeclare(collection_kinds_t, collection_kinds_);
 CpvDeclare(collection_table_t, collection_table_);
 CpvDeclare(collection_buffer_t, collection_buffer_);
 CpvDeclare(std::uint32_t, local_collection_count_);
-CpvDeclare(int, deliver_handler_);
+CpvDeclare(int, converse_handler_);
 
 void initialize_globals_(void) {
   if (CmiMyRank() == 0) {
@@ -35,8 +35,8 @@ void initialize_globals_(void) {
   CpvInitialize(std::uint32_t, local_collection_count_);
   CpvAccess(local_collection_count_) = 0;
   // register converse handlers
-  CpvInitialize(int, deliver_handler_);
-  CpvAccess(deliver_handler_) = CmiRegisterHandler(deliver);
+  CpvInitialize(int, converse_handler_);
+  CpvAccess(converse_handler_) = CmiRegisterHandler(converse_handler_);
 }
 
 void start_fn_(int, char** argv) {
@@ -64,6 +64,7 @@ void exit(message* msg) {
     message::free(msg);
   } else {
     msg->dst_.callback_fn().pe = cmk::all;
+    pack_message(msg);  // XXX ( this is likely overkill )
     CmiSyncBroadcastAndFree(msg->total_size_, (char*)msg);
   }
   CsdExitScheduler();
@@ -118,8 +119,11 @@ inline void deliver_to_callback_(message* msg) {
   (callback_for(msg))(msg);
 }
 
-void deliver(void* raw) {
+void converse_handler_(void* raw) {
   auto* msg = static_cast<message*>(raw);
+  // unpack message on receive
+  unpack_message(msg);
+  // then determine how to route it
   switch (msg->dst_.kind()) {
     case kEndpoint:
       deliver_to_endpoint_(msg, true);
@@ -137,12 +141,7 @@ void send(message* msg) {
   switch (dst.kind()) {
     case kCallback: {
       auto& cb = dst.callback_fn();
-      if (cb.pe == cmk::all) {
-        CmiSyncBroadcastAllAndFree(msg->total_size_, (char*)msg);
-      } else {
-        // then forward it along~
-        CmiSyncSendAndFree(cb.pe, msg->total_size_, (char*)msg);
-      }
+      send_helper_(cb.pe, msg);
       break;
     }
     case kEndpoint:

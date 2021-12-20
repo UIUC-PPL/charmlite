@@ -70,14 +70,14 @@ class element_proxy : public element_proxy_base_ {
     auto* msg = message_extractor<arg_type>::get(args...);
     new (&(msg->dst_))
         destination(this->id_, this->idx_, constructor<T, arg_type>());
-    deliver(msg);
+    cmk::send(msg);
   }
 
   template <typename Message, member_fn_t<T, Message> Fn>
   void send(Message* msg) const {
     new (&(msg->dst_)) destination(this->id_, this->idx_,
                                    entry<member_fn_t<T, Message>, Fn>());
-    deliver(msg);
+    cmk::send(msg);
   }
 
   template <typename Message, member_fn_t<T, Message> Fn>
@@ -205,7 +205,7 @@ class collection_proxy : public collection_proxy_base_<T> {
     }
     msg->total_size_ += (a_sz + sizeof(options_type));
     msg->has_collection_kind() = true;
-    CmiSyncBroadcastAllAndFree(msg->total_size_, (char*)msg);
+    send_helper_(cmk::all, msg);
   }
 };
 
@@ -256,7 +256,7 @@ class group_proxy : public collection_proxy_base_<T> {
       // then free a_msg since we're done with it
       message::free(a_msg);
       // broadcast the conjoined message to all PEs
-      CmiSyncBroadcastAllAndFree(msg->total_size_, (char*)msg);
+      send_helper_(cmk::all, msg);
     }
     return group_proxy<T>(id);
   }

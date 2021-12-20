@@ -60,9 +60,12 @@ static void message_deleter_impl_(void* msg) {
 template <typename T>
 static message_kind_t register_message_(void) {
   auto id = CsvAccess(message_table_).size() + 1;
-  CsvAccess(message_table_).emplace_back(&message_deleter_impl_<T>);
+  CsvAccess(message_table_)
+      .emplace_back(&message_deleter_impl_<T>, nullptr, nullptr);
   return id;
 }
+
+message_kind_t message_helper_<message>::kind_ = 0;
 
 template <typename T>
 message_kind_t message_helper_<T>::kind_ = register_message_<T>();

@@ -8,11 +8,18 @@
 
 namespace cmk {
 using message_deleter_t = void (*)(void *);
+using message_packer_t = void (*)(message *&);
+using message_unpacker_t = void (*)(message *&);
 
 struct message_record_ {
   message_deleter_t deleter_;
+  message_packer_t packer_;
+  message_unpacker_t unpacker_;
 
-  message_record_(const message_deleter_t &deleter) : deleter_(deleter) {}
+  message_record_(const message_deleter_t &deleter,
+                  const message_packer_t &packer,
+                  const message_unpacker_t &unpacker)
+      : deleter_(deleter), packer_(packer), unpacker_(unpacker) {}
 };
 
 using message_table_t = std::vector<message_record_>;
@@ -52,18 +59,19 @@ struct message {
   static constexpr auto has_combiner_ = 0;
   static constexpr auto has_continuation_ = has_combiner_ + 1;
   static constexpr auto has_collection_kind_ = has_continuation_ + 1;
+  static constexpr auto is_packed_ = has_collection_kind_ + 1;
 
  public:
   using flag_type = std::bitset<8>::reference;
 
   message(void) : kind_(0), total_size_(sizeof(message)) {
-    CmiSetHandler(this, CpvAccess(deliver_handler_));
+    CmiSetHandler(this, CpvAccess(converse_handler_));
   }
 
   message(message_kind_t kind, std::size_t total_size)
       : kind_(kind), total_size_(total_size) {
     // FIXME ( DRY failure )
-    CmiSetHandler(this, CpvAccess(deliver_handler_));
+    CmiSetHandler(this, CpvAccess(converse_handler_));
   }
 
   combiner_id_t *combiner(void) {
@@ -86,6 +94,8 @@ struct message {
 
   flag_type has_continuation(void) { return this->flags_[has_continuation_]; }
 
+  flag_type is_packed(void) { return this->flags_[is_packed_]; }
+
   flag_type has_collection_kind(void) {
     return this->flags_[has_collection_kind_];
   }
@@ -95,15 +105,24 @@ struct message {
     free(msg.release());
   }
 
-  static void free(void *msg) {
-    if (msg == nullptr) {
+  const message_record_ *record(void) const {
+    if (this->kind_ == 0) {
+      return nullptr;
+    } else {
+      return &(CsvAccess(message_table_)[this->kind_ - 1]);
+    }
+  }
+
+  static void free(void *blk) {
+    if (blk == nullptr) {
       return;
     } else {
-      auto &kind = static_cast<message *>(msg)->kind_;
-      if (kind == 0) {
+      auto *msg = static_cast<message *>(blk);
+      auto *rec = msg->record();
+      if (rec == nullptr) {
         message::operator delete(msg);
       } else {
-        CsvAccess(message_table_)[kind - 1].deleter_(msg);
+        rec->deleter_(msg);
       }
     }
   }
@@ -126,6 +145,24 @@ struct message {
 
   bool is_broadcast(void) { return this->dst_.is_broadcast(); }
 };
+
+inline void pack_message(message *&msg) {
+  auto *rec = msg ? msg->record() : nullptr;
+  auto *fn = rec ? rec->packer_ : nullptr;
+  if (fn && !(msg->is_packed())) {
+    fn(msg);
+    msg->is_packed() = true;
+  }
+}
+
+inline void unpack_message(message *&msg) {
+  auto *rec = msg ? msg->record() : nullptr;
+  auto *fn = rec ? rec->unpacker_ : nullptr;
+  if (fn && msg->is_packed()) {
+    fn(msg);
+    msg->is_packed() = false;
+  }
+}
 
 static_assert(sizeof(message) % ALIGN_BYTES == 0, "message unaligned");
 
@@ -160,10 +197,19 @@ struct data_message : public plain_message<data_message<T>> {
 
 // utility function to pick optimal send mechanism
 inline void send_helper_(int pe, message *msg) {
-  if (pe == CmiMyPe()) {
-    CmiPushPE(pe, msg);
+  // NOTE ( we only need to pack when we're going off-node )
+  if (pe == cmk::all) {
+    pack_message(msg);
+
+    CmiSyncBroadcastAllAndFree(msg->total_size_, (char *)msg);
   } else {
-    CmiSyncSendAndFree(pe, msg->total_size_, (char *)msg);
+    if (CmiNodeOf(pe) == CmiMyNode()) {
+      CmiPushPE(pe, msg);
+    } else {
+      pack_message(msg);
+
+      CmiSyncSendAndFree(pe, msg->total_size_, (char *)msg);
+    }
   }
 }
 

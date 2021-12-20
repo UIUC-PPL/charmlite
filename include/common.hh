@@ -147,17 +147,24 @@ CsvExtern(collection_kinds_t, collection_kinds_);
 CpvExtern(collection_table_t, collection_table_);
 CpvExtern(collection_buffer_t, collection_buffer_);
 CpvExtern(std::uint32_t, local_collection_count_);
-CpvExtern(int, deliver_handler_);
+CpvExtern(int, converse_handler_);
 
 void initialize_globals_(void);
 
 struct destination;
 enum destination_kind : std::uint8_t { kInvalid = 0, kCallback, kEndpoint };
 
-// TODO (deliver is the converse handler)
-void deliver(void*);
-// TODO (send is the send fn // needs better names)
+void converse_handler_(void*);
+
 void send(message*);
+
+inline void send(message* msg, bool immediate) {
+  if (immediate) {
+    converse_handler_(msg);
+  } else {
+    send(msg);
+  }
+}
 }  // namespace cmk
 
 #include "destination.hh"

@@ -121,7 +121,7 @@ class collection : public collection_base_ {
         } else {
           // otherwise route to the home pe
           // XXX ( update bcast? prolly not. )
-          CmiSyncSendAndFree(pe, msg->total_size_, (char*)msg);
+          send_helper_(pe, msg);
         }
       } else {
         // otherwise, invoke the EP on the chare
