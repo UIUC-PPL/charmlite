@@ -128,8 +128,12 @@ struct message {
   }
 
   bool is_cloneable(void) const {
-    return const_cast<message *>(this)->is_packed() ||
-           (this->record()->packer_ == nullptr);
+    if (const_cast<message *>(this)->is_packed()) {
+      return true;
+    } else {
+      auto* rec = this->record();
+      return (rec == nullptr || rec->packer_ == nullptr);
+    }
   }
 
   // clones a PACKED message

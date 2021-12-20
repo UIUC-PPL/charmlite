@@ -88,6 +88,9 @@ int main(int argc, char** argv) {
     // get the runtime parameters
     std::size_t sz = (argc >= 2) ? atoll(argv[1]) : 4096;
     std::size_t nIts = (argc >= 3) ? atoll(argv[2]) : 128;
+    CmiPrintf("main> pingpong with %lu iterations and %luB payload\n", nIts,
+              sz);
+    // allocate the launch pack
     auto* msg = new run_message_t(sz, nIts);
     // then run through a warm up phase
     grp[0].send<run_message_t, &pingpong::run>((run_message_t*)msg->clone());
@@ -95,9 +98,7 @@ int main(int argc, char** argv) {
     // then run through the measurement phase
     grp[0].send<run_message_t, &pingpong::run>(msg);
     CthSuspend();
-    // print some info...
-    CmiPrintf("main> pingpong with %lu iterations and %luB payload\n", nIts,
-              sz);
+    // print the final round-trip time
     CmiPrintf("main> roundtrip time was %g us\n",
               (1e6 * lastTime) / (double)nIts);
     // then exit
