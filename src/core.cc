@@ -116,13 +116,14 @@ inline void deliver_to_callback_(message* msg) {
   auto pe = msg->dst_.callback_fn().pe;
   CmiEnforce(pe == cmk::all || pe == CmiMyPe());
 #endif
+  // prepare message for local-processing
+  unpack_message(msg);
+  // then process it
   (callback_for(msg))(msg);
 }
 
 void converse_handler_(void* raw) {
   auto* msg = static_cast<message*>(raw);
-  // unpack message on receive
-  unpack_message(msg);
   // then determine how to route it
   switch (msg->dst_.kind()) {
     case kEndpoint:

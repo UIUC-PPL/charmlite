@@ -127,8 +127,14 @@ struct message {
     }
   }
 
+  bool is_cloneable(void) const {
+    return const_cast<message *>(this)->is_packed() ||
+           (this->record()->packer_ == nullptr);
+  }
+
+  // clones a PACKED message
   message *clone(void) const {
-    // NOTE ( this will need to take un/packing into consideration )
+    CmiAssert(this->is_cloneable());
     return (message *)CmiCopyMsg((char *)this, this->total_size_);
   }
 
@@ -162,6 +168,12 @@ inline void unpack_message(message *&msg) {
     fn(msg);
     msg->is_packed() = false;
   }
+}
+
+inline void pack_and_free_(char *dst, message *src) {
+  pack_message(src);
+  memcpy(dst, src, src->total_size_);
+  message::free(src);
 }
 
 static_assert(sizeof(message) % ALIGN_BYTES == 0, "message unaligned");

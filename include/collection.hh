@@ -54,7 +54,7 @@ class collection : public collection_base_ {
         //      ( does vis-a-vis CKARRAYMAP_POPULATE_INITIAL       )
         // TODO ( that said, it should be elim'd for node/groups   )
         if (this->locmgr_.pe_for(view) == CmiMyPe()) {
-          auto* clone = msg->clone();
+          auto* clone = msg->clone();  // message should be packed
           clone->dst_.endpoint().chare = view;
           this->deliver_now(clone);
         }
@@ -231,6 +231,8 @@ class collection : public collection_base_ {
     if (bcast == (base->last_bcast_ + 1)) {
       base->last_bcast_++;
       auto children = this->locmgr_.upstream(idx);
+      // ensure message is packed so we can safely clone it
+      pack_message(msg);
       // send a copy of the message to all our children
       for (auto& child : children) {
         auto* clone = msg->clone();

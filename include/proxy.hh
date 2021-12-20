@@ -197,8 +197,7 @@ class collection_proxy : public collection_proxy_base_<T> {
     new (&msg->dst_) destination(id, chare_bcast_root_, kind);
     if (opts) {
       new (m_opts) options_type(*opts);
-      CmiAssert(a_msg);
-      memcpy((char*)msg + offset, a_msg, a_msg->total_size_);
+      pack_and_free_((char*)msg + offset, a_msg);
     } else {
       new (m_opts) options_type();
       CmiAssert(a_msg == nullptr);
@@ -252,9 +251,7 @@ class group_proxy : public collection_proxy_base_<T> {
           reinterpret_cast<options_type*>((char*)msg + sizeof(message));
       new (opts) options_type(CmiNumPes());
       // copy the argument message onto it
-      memcpy((char*)msg + offset, a_msg, a_msg->total_size_);
-      // then free a_msg since we're done with it
-      message::free(a_msg);
+      pack_and_free_((char*)msg + offset, a_msg);
       // broadcast the conjoined message to all PEs
       send_helper_(cmk::all, msg);
     }

@@ -67,6 +67,9 @@ struct collection_index_hasher_ {
   }
 };
 
+inline void pack_message(message*& msg);
+inline void unpack_message(message*& msg);
+
 using entry_fn_t = void (*)(void*, void*);
 
 struct entry_record_ {
@@ -84,7 +87,11 @@ struct entry_record_ {
     return std::string(names[0]);
   }
 
-  void invoke(void* obj, void* msg) const { (this->fn_)(obj, msg); }
+  void invoke(void* obj, void* raw) const {
+    auto* msg = static_cast<message*>(raw);
+    unpack_message(msg);
+    (this->fn_)(obj, msg);
+  }
 };
 
 /* general terminology :
