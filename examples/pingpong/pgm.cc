@@ -88,8 +88,8 @@ int main(int argc, char** argv) {
     // get the runtime parameters
     std::size_t sz = (argc >= 2) ? atoll(argv[1]) : 4096;
     std::size_t nIts = (argc >= 3) ? atoll(argv[2]) : 128;
-    CmiPrintf("main> pingpong with %lu iterations and %luB payload\n", nIts,
-              sz);
+    CmiPrintf("main> pingpong with %luB payload and %lu iterations\n", sz,
+              nIts);
     // allocate the launch pack
     auto* msg = new run_message_t(sz, nIts);
     // then run through a warm up phase
