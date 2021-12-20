@@ -2,6 +2,7 @@
 #define __CMK_IMPL_HH__
 
 #include "ep.hh"
+#include "message.impl.hh"
 
 /* registers all user data-types with the RTS
  */
@@ -59,9 +60,11 @@ static void message_deleter_impl_(void* msg) {
 
 template <typename T>
 static message_kind_t register_message_(void) {
+  using properties_type = message_properties_extractor_<T>;
   auto id = CsvAccess(message_table_).size() + 1;
   CsvAccess(message_table_)
-      .emplace_back(&message_deleter_impl_<T>, nullptr, nullptr);
+      .emplace_back(&message_deleter_impl_<T>, properties_type::packer(),
+                    properties_type::unpacker());
   return id;
 }
 
