@@ -29,9 +29,11 @@ namespace cmk {
     struct entry_fn_impl_<member_fn_t<T, Message>, Fn,
         typename std::enable_if<is_message_<Message>()>::type>
     {
-        static void call_(void* self, void* msg)
+        static void call_(void* self, message_ptr<>&& msg)
         {
-            (static_cast<T*>(self)->*Fn)(static_cast<Message*>(msg));
+            auto* typed = static_cast<Message*>(msg.release());
+            message_ptr<Message> owned(typed);
+            (static_cast<T*>(self)->*Fn)(std::move(owned));
         }
 
         static const entry_id_t& id_(void)
@@ -46,27 +48,28 @@ namespace cmk {
     template <typename A>
     struct constructor_caller_<A, void>
     {
-        void operator()(void* self, void* msg)
+        void operator()(void* self, message_ptr<>&&)
         {
             new (static_cast<A*>(self)) A;
-            message::free(msg);
         }
     };
 
     template <typename A, typename Message>
-    struct constructor_caller_<A, Message*>
+    struct constructor_caller_<A, message_ptr<Message>&&>
     {
         typename std::enable_if<is_message_<Message>()>::type operator()(
-            void* self, void* msg)
+            void* self, message_ptr<>&& msg)
         {
-            new (static_cast<A*>(self)) A(static_cast<Message*>(msg));
+            auto* typed = static_cast<Message*>(msg.release());
+            message_ptr<Message> owned(typed);
+            new (static_cast<A*>(self)) A(std::move(owned));
         }
     };
 
-    template <typename T, typename Message>
-    void call_constructor_(void* self, void* msg)
+    template <typename T, typename Arg>
+    void call_constructor_(void* self, message_ptr<>&& msg)
     {
-        constructor_caller_<T, Message>()(self, msg);
+        constructor_caller_<T, Arg>()(self, std::move(msg));
     }
 
     template <typename T, T t>

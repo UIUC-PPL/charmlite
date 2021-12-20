@@ -21,19 +21,18 @@ struct foo : public cmk::chare<foo, int>
 {
     int val;
 
-    foo(test_message* msg)
+    foo(cmk::message_ptr<test_message>&& msg)
       : val(msg->val)
     {
-        delete msg;
     }
 
-    void bar(test_message* msg)
+    void bar(cmk::message_ptr<test_message>&& msg)
     {
         CmiPrintf("ch%d@pe%d> %d+%d=%d\n", this->index(), CmiMyPe(), this->val,
             msg->val, this->val + msg->val);
         // note -- this is a cross-pe reduction
         // (cross-chare reductions not yet implemented)
-        cmk::reduce<cmk::message, cmk::nop, cmk::exit>(msg);
+        cmk::reduce<cmk::message, cmk::nop, cmk::exit>(std::move(msg));
     }
 };
 
@@ -49,9 +48,10 @@ int main(int argc, char** argv)
         {
             auto elt = arr[i];
             // insert an element
-            elt.insert(new test_message(i));
+            elt.insert(cmk::make_message<test_message>(i));
             // and send it a message
-            elt.send<test_message, &foo::bar>(new test_message(i + 1));
+            elt.send<test_message, &foo::bar>(
+                cmk::make_message<test_message>(i + 1));
         }
         // currently does nothing, will unblock reductions
         arr.done_inserting();

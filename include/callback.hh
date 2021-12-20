@@ -27,13 +27,13 @@ namespace cmk {
         return id ? CsvAccess(callback_table_)[id - 1] : nullptr;
     }
 
-    inline combiner_fn_t<message> combiner_for(message* msg)
+    inline combiner_fn_t<message> combiner_for(const message_ptr<>& msg)
     {
         auto* id = msg->combiner();
         return id ? combiner_for(*id) : nullptr;
     }
 
-    inline callback_fn_t<message> callback_for(message* msg)
+    inline callback_fn_t<message> callback_for(const message_ptr<>& msg)
     {
         return (msg->dst_.kind() == kCallback) ?
             callback_for(msg->dst_.callback_fn().id) :
@@ -63,15 +63,15 @@ namespace cmk {
             new (&dst) destination(this->dst_);
         }
 
-        inline void imprint(message* msg) const
+        inline void imprint(const message_ptr<Message>& msg) const
         {
             this->imprint(msg->dst_);
         }
 
-        void send(Message* msg)
+        void send(message_ptr<Message>&& msg)
         {
             this->imprint(msg);
-            cmk::send(msg);
+            cmk::send(std::move(msg));
         }
 
         template <callback_fn_t<Message> Callback>

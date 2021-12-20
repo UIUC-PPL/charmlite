@@ -14,19 +14,19 @@ namespace cmk {
     template <>
     struct message_extractor<void>
     {
-        static message* get(void)
+        static message_ptr<> get(void)
         {
-            return new message;
+            return message_ptr<>(new message);
         }
     };
 
     template <typename Message>
-    struct message_extractor<Message*,
+    struct message_extractor<message_ptr<Message>&&,
         typename std::enable_if<std::is_base_of<message, Message>::value>::type>
     {
-        static message* get(Message* msg)
+        static message_ptr<> get(message_ptr<Message>&& msg)
         {
-            return msg;
+            return std::move(msg);
         }
     };
 
@@ -82,21 +82,22 @@ namespace cmk {
         }
 
         template <typename... Args>
-        void insert(Args... args) const
+        void insert(Args&&... args) const
         {
-            using arg_type = pack_helper_t<Args...>;
-            auto* msg = message_extractor<arg_type>::get(args...);
+            using arg_type = pack_helper_t<Args&&...>;
+            auto msg =
+                message_extractor<arg_type>::get(std::forward<Args>(args)...);
             new (&(msg->dst_))
                 destination(this->id_, this->idx_, constructor<T, arg_type>());
-            cmk::send(msg);
+            cmk::send(std::move(msg));
         }
 
         template <typename Message, member_fn_t<T, Message> Fn>
-        void send(Message* msg) const
+        void send(message_ptr<Message>&& msg) const
         {
             new (&(msg->dst_)) destination(
                 this->id_, this->idx_, entry<member_fn_t<T, Message>, Fn>());
-            cmk::send(msg);
+            cmk::send(std::move(msg));
         }
 
         template <typename Message, member_fn_t<T, Message> Fn>
@@ -108,7 +109,8 @@ namespace cmk {
 
     protected:
         template <typename Message, combiner_fn_t<Message> Combiner>
-        void contribute(Message* msg, const cmk::callback<Message>& cb) const
+        void contribute(
+            message_ptr<Message>&& msg, const cmk::callback<Message>& cb) const
         {
             // set the contribution's combiner
             msg->has_combiner() = true;
@@ -121,7 +123,7 @@ namespace cmk {
             cont = true;
             cb.imprint(*(msg->continuation()));
             // send the contribution...
-            cmk::lookup(this->id_)->contribute(msg);
+            cmk::lookup(this->id_)->contribute(std::move(msg));
         }
     };
 
@@ -153,12 +155,12 @@ namespace cmk {
         }
 
         template <typename Message, member_fn_t<T, Message> Fn>
-        void broadcast(Message* msg) const
+        void broadcast(message_ptr<Message>&& msg) const
         {
             // send a message to the broadcast root
             new (&msg->dst_) destination(this->id_, chare_bcast_root_,
                 entry<member_fn_t<T, Message>, Fn>());
-            send(msg);
+            cmk::send(std::move(msg));
         }
 
         operator collection_index_t(void) const
@@ -191,13 +193,13 @@ namespace cmk {
         template <typename Message,
             template <class> class Mapper = default_mapper>
         static collection_proxy<T> construct(
-            Message* a_msg, const options_type& opts)
+            message_ptr<Message>&& a_msg, const options_type& opts)
         {
             collection_index_t id;
             base_type::next_index_(id);
             new (&a_msg->dst_)
                 destination(id, chare_bcast_root_, constructor<T, Message>());
-            call_construtor_<Mapper>(id, &opts, a_msg);
+            call_construtor_<Mapper>(id, &opts, std::move(a_msg));
             return collection_proxy<T>(id);
         }
 
@@ -207,10 +209,10 @@ namespace cmk {
         {
             collection_index_t id;
             base_type::next_index_(id);
-            auto* a_msg = new message;
+            auto a_msg = cmk::make_message<message<>>();
             new (&a_msg->dst_)
                 destination(id, chare_bcast_root_, constructor<T, void>());
-            call_construtor_<Mapper>(id, &opts, a_msg);
+            call_construtor_<Mapper>(id, &opts, std::move(a_msg));
             return collection_proxy<T>(id);
         }
 
@@ -219,7 +221,7 @@ namespace cmk {
         {
             collection_index_t id;
             base_type::next_index_(id);
-            call_construtor_<Mapper>(id, nullptr, nullptr);
+            call_construtor_<Mapper>(id, nullptr, message_ptr<>());
             return collection_proxy<T>(id);
         }
 
@@ -228,20 +230,21 @@ namespace cmk {
     private:
         template <template <class> class Mapper = default_mapper>
         static void call_construtor_(const collection_index_t& id,
-            const options_type* opts, message* a_msg)
+            const options_type* opts, message_ptr<>&& a_msg)
         {
             auto kind = collection_helper_<collection<T, Mapper>>::kind_;
             auto offset = sizeof(message);
             auto a_sz = a_msg ? a_msg->total_size_ : 0;
-            auto* msg = new (offset + sizeof(options_type)) message();
-            auto* m_opts =
-                reinterpret_cast<options_type*>((char*) msg + offset);
+            message_ptr<> msg(
+                new (offset + a_sz + sizeof(options_type)) message);
+            auto* base = (char*) msg.get();
+            auto* m_opts = reinterpret_cast<options_type*>(base + offset);
             offset += sizeof(options_type);
             new (&msg->dst_) destination(id, chare_bcast_root_, kind);
             if (opts)
             {
                 new (m_opts) options_type(*opts);
-                pack_and_free_((char*) msg + offset, a_msg);
+                pack_and_free_(base + offset, std::move(a_msg));
             }
             else
             {
@@ -250,7 +253,7 @@ namespace cmk {
             }
             msg->total_size_ += (a_sz + sizeof(options_type));
             msg->has_collection_kind() = true;
-            send_helper_(cmk::all, msg);
+            send_helper_(cmk::all, std::move(msg));
         }
     };
 
@@ -277,16 +280,17 @@ namespace cmk {
         }
 
         template <typename... Args>
-        static group_proxy<T> construct(Args... args)
+        static group_proxy<T> construct(Args&&... args)
         {
             collection_index_t id;
             base_type::next_index_(id);
-            auto* a_msg = ([&](void) -> message* {
-                using arg_type = pack_helper_t<Args...>;
-                auto* msg = message_extractor<arg_type>::get(args...);
+            auto a_msg = ([&](void) {
+                using arg_type = pack_helper_t<Args&&...>;
+                auto msg = message_extractor<arg_type>::get(
+                    std::forward<Args>(args)...);
                 new (&msg->dst_) destination(
                     id, chare_bcast_root_, constructor<T, arg_type>());
-                return msg;
+                return std::move(msg);
             })();
             {
                 using options_type = collection_options<int>;
@@ -294,19 +298,20 @@ namespace cmk {
                     collection_helper_<collection<T, group_mapper>>::kind_;
                 auto offset = sizeof(message) + sizeof(options_type);
                 auto total_size = offset + a_msg->total_size_;
-                auto* msg = new (total_size) message();
+                message_ptr<> msg(new (total_size) message);
                 // update properties of creation message
                 new (&msg->dst_) destination(id, chare_bcast_root_, kind);
                 msg->has_collection_kind() = true;
                 msg->total_size_ = total_size;
                 // set the bounds for the collection
-                auto* opts = reinterpret_cast<options_type*>(
-                    (char*) msg + sizeof(message));
+                auto* base = (char*) msg.get();
+                auto* opts =
+                    reinterpret_cast<options_type*>(base + sizeof(message));
                 new (opts) options_type(CmiNumPes());
                 // copy the argument message onto it
-                pack_and_free_((char*) msg + offset, a_msg);
+                pack_and_free_(base + offset, std::move(a_msg));
                 // broadcast the conjoined message to all PEs
-                send_helper_(cmk::all, msg);
+                send_helper_(cmk::all, std::move(msg));
             }
             return group_proxy<T>(id);
         }

@@ -20,8 +20,8 @@ namespace cmk {
         }
         virtual ~collection_base_() = default;
         virtual void* lookup(const chare_index_t&) = 0;
-        virtual void deliver(message* msg, bool immediate) = 0;
-        virtual void contribute(message* msg) = 0;
+        virtual void deliver(message_ptr<>&& msg, bool immediate) = 0;
+        virtual void contribute(message_ptr<>&& msg) = 0;
 
         template <typename T>
         inline T* lookup(const chare_index_t& idx)
@@ -66,10 +66,10 @@ namespace cmk {
                     // TODO ( that said, it should be elim'd for node/groups   )
                     if (this->locmgr_.pe_for(view) == CmiMyPe())
                     {
-                        auto* clone =
-                            msg->clone();    // message should be packed
+                        // message should be packed
+                        auto clone = msg->clone();
                         clone->dst_.endpoint().chare = view;
-                        this->deliver_now(clone);
+                        this->deliver_now(std::move(clone));
                     }
                 }
             }
@@ -101,11 +101,9 @@ namespace cmk {
                 while (!buffer.empty())
                 {
                     auto& msg = buffer.front();
-                    if (this->try_deliver(msg.get()))
+                    if (this->try_deliver(msg))
                     {
-                        // release since we consumed the message
-                        msg.release();
-                        // the pop it from the queue
+                        // if successful, pop from the queue
                         buffer.pop_front();
                     }
                     else
@@ -118,7 +116,7 @@ namespace cmk {
             }
         }
 
-        bool try_deliver(message* msg)
+        bool try_deliver(message_ptr<>& msg)
         {
             auto& ep = msg->dst_.endpoint();
             auto* rec = record_for(ep.entry);
@@ -134,7 +132,7 @@ namespace cmk {
                 auto ins = chares_.emplace(idx, ch);
                 CmiAssertMsg(ins.second, "insertion did not occur!");
                 // call constructor on chare
-                rec->invoke(ch, msg);
+                rec->invoke(ch, std::move(msg));
                 // flush any messages we have for it
                 flush_buffers(idx);
             }
@@ -154,20 +152,20 @@ namespace cmk {
                     {
                         // otherwise route to the home pe
                         // XXX ( update bcast? prolly not. )
-                        send_helper_(pe, msg);
+                        send_helper_(pe, std::move(msg));
                     }
                 }
                 else
                 {
                     // otherwise, invoke the EP on the chare
-                    handle_(rec, (find->second).get(), msg);
+                    handle_(rec, (find->second).get(), std::move(msg));
                 }
             }
 
             return true;
         }
 
-        inline void deliver_now(message* msg)
+        inline void deliver_now(message_ptr<>&& msg)
         {
             auto& ep = msg->dst_.endpoint();
             if (ep.chare == chare_bcast_root_)
@@ -178,63 +176,64 @@ namespace cmk {
                 {
                     // if the object is unavailable -- we have to reroute it
                     // ( this could be a loopback, then we try again later )
-                    send_helper_(locmgr_.pe_for(root), msg);
+                    send_helper_(locmgr_.pe_for(root), std::move(msg));
                 }
                 else
                 {
                     // otherwise, we increment the broadcast count and go!
                     ep.chare = root;
                     ep.bcast = obj->last_bcast_ + 1;
-                    handle_(record_for(ep.entry), static_cast<T*>(obj), msg);
+                    handle_(record_for(ep.entry), static_cast<T*>(obj),
+                        std::move(msg));
                 }
             }
             else if (!try_deliver(msg))
             {
                 // buffer messages when delivery attempt fails
-                this->buffer_(msg);
+                this->buffer_(std::move(msg));
             }
         }
 
-        inline void deliver_later(message* msg)
+        inline void deliver_later(message_ptr<>&& msg)
         {
             auto& idx = msg->dst_.endpoint().chare;
             auto pe = this->locmgr_.pe_for(idx);
-            send_helper_(pe, msg);
+            send_helper_(pe, std::move(msg));
         }
 
-        virtual void deliver(message* msg, bool immediate) override
+        virtual void deliver(message_ptr<>&& msg, bool immediate) override
         {
             if (immediate)
             {
-                this->deliver_now(msg);
+                this->deliver_now(std::move(msg));
             }
             else
             {
-                this->deliver_later(msg);
+                this->deliver_later(std::move(msg));
             }
         }
 
-        virtual void contribute(message* msg) override
+        virtual void contribute(message_ptr<>&& msg) override
         {
             auto& ep = msg->dst_.endpoint();
             auto& idx = ep.chare;
             auto* obj = static_cast<chare_base_*>(this->lookup(idx));
             // stamp the message with a sequence number
             ep.bcast = ++(obj->last_redn_);
-            this->handle_reduction_message_(obj, msg);
+            this->handle_reduction_message_(obj, std::move(msg));
         }
 
     private:
         using reducer_iterator_t =
             typename chare_base_::reducer_map_t::iterator;
 
-        void handle_reduction_message_(chare_base_* obj, message* msg)
+        void handle_reduction_message_(chare_base_* obj, message_ptr<>&& msg)
         {
             auto& ep = msg->dst_.endpoint();
             auto& redn = ep.bcast;
             auto search = this->get_reducer_(obj, redn);
             auto& reducer = search->second;
-            reducer.received.emplace_back(msg);
+            reducer.received.emplace_back(std::move(msg));
             // when we've received all expected messages
             if (reducer.ready())
             {
@@ -245,19 +244,13 @@ namespace cmk {
                      it++)
                 {
                     auto& rhs = *it;
+                    auto cont = *(rhs->continuation());
                     // combine them by the given function
-                    auto* res = comb(lhs.get(), rhs.get());
-                    pick_message_(lhs, rhs, res);
-                    // if the function generated a new message
-                    if (!lhs)
-                    {
-                        // update its continuation
-                        res->has_continuation() = true;
-                        auto* cont = res->continuation();
-                        new (cont) destination(*(rhs->continuation()));
-                        // then replace lhs for the next iteration
-                        lhs.reset(res);
-                    }
+                    lhs = comb(std::move(lhs), std::move(rhs));
+                    // reset the message's continuation
+                    // (in case it was overriden)
+                    lhs->has_continuation() = true;
+                    new (lhs->continuation()) destination(cont);
                 }
                 // update result's destination (and clear
                 // flags) so we can send it along
@@ -266,13 +259,13 @@ namespace cmk {
                 {
                     new (&(lhs->dst_)) destination(*(lhs->continuation()));
                     lhs->has_combiner() = lhs->has_continuation() = false;
-                    cmk::send(lhs.release());
+                    cmk::send(std::move(lhs));
                 }
                 else
                 {
                     CmiAssert(down.size() == 1);
                     lhs->dst_.endpoint().chare = down.front();
-                    this->deliver_later(lhs.release());
+                    this->deliver_later(std::move(lhs));
                 }
                 // erase the reducer (it's job is done)
                 obj->reducers_.erase(search);
@@ -280,7 +273,7 @@ namespace cmk {
         }
 
         void handle_broadcast_message_(
-            const entry_record_* rec, chare_base_* obj, message* msg)
+            const entry_record_* rec, chare_base_* obj, message_ptr<>&& msg)
         {
             auto* base = static_cast<chare_base_*>(obj);
             auto& idx = base->index_;
@@ -295,19 +288,19 @@ namespace cmk {
                 // send a copy of the message to all our children
                 for (auto& child : children)
                 {
-                    auto* clone = msg->clone();
+                    auto clone = msg->clone();
                     clone->dst_.endpoint().chare = child;
-                    this->deliver_later(clone);
+                    this->deliver_later(std::move(clone));
                 }
                 // process the message locally
-                rec->invoke(obj, msg);
+                rec->invoke(obj, std::move(msg));
                 // try flushing the buffers since...
                 this->flush_buffers(idx);
             }
             else
             {
                 // we buffer out-of-order broadcasts
-                this->buffer_(msg);
+                this->buffer_(std::move(msg));
             }
         }
 
@@ -330,28 +323,28 @@ namespace cmk {
             return find;
         }
 
-        void handle_(const entry_record_* rec, T* obj, message* msg)
+        void handle_(const entry_record_* rec, T* obj, message_ptr<>&& msg)
         {
             // if a message has a combiner...
             if (msg->has_combiner())
             {
                 // then it's a reduction message
-                this->handle_reduction_message_(obj, msg);
+                this->handle_reduction_message_(obj, std::move(msg));
             }
             else if (msg->is_broadcast())
             {
-                this->handle_broadcast_message_(rec, obj, msg);
+                this->handle_broadcast_message_(rec, obj, std::move(msg));
             }
             else
             {
-                rec->invoke(obj, msg);
+                rec->invoke(obj, std::move(msg));
             }
         }
 
-        inline void buffer_(message* msg)
+        inline void buffer_(message_ptr<>&& msg)
         {
             auto& idx = msg->dst_.endpoint().chare;
-            this->buffers_[idx].emplace_back(msg);
+            this->buffers_[idx].emplace_back(std::move(msg));
         }
     };
 

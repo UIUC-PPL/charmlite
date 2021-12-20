@@ -8,8 +8,8 @@
 
 namespace cmk {
     using message_deleter_t = void (*)(void*);
-    using message_packer_t = void (*)(message*&);
-    using message_unpacker_t = void (*)(message*&);
+    using message_packer_t = void (*)(message_ptr<>&);
+    using message_unpacker_t = void (*)(message_ptr<>&);
 
     struct message_record_
     {
@@ -183,10 +183,13 @@ namespace cmk {
         }
 
         // clones a PACKED message
-        message* clone(void) const
+        template <typename T = message>
+        message_ptr<T> clone(void) const
         {
             CmiAssert(this->is_cloneable());
-            return (message*) CmiCopyMsg((char*) this, this->total_size_);
+            auto* typed = reinterpret_cast<T*>(
+                CmiCopyMsg((char*) this, this->total_size_));
+            return message_ptr<T>(typed);
         }
 
         void* operator new(std::size_t count, std::size_t sz)
@@ -216,7 +219,7 @@ namespace cmk {
         }
     };
 
-    inline void pack_message(message*& msg)
+    inline void pack_message(message_ptr<>& msg)
     {
         auto* rec = msg ? msg->record() : nullptr;
         auto* fn = rec ? rec->packer_ : nullptr;
@@ -227,7 +230,7 @@ namespace cmk {
         }
     }
 
-    inline void unpack_message(message*& msg)
+    inline void unpack_message(message_ptr<>& msg)
     {
         auto* rec = msg ? msg->record() : nullptr;
         auto* fn = rec ? rec->unpacker_ : nullptr;
@@ -238,11 +241,10 @@ namespace cmk {
         }
     }
 
-    inline void pack_and_free_(char* dst, message* src)
+    inline void pack_and_free_(char* dst, message_ptr<>&& src)
     {
         pack_message(src);
-        memcpy(dst, src, src->total_size_);
-        message::free(src);
+        memcpy(dst, src.get(), src->total_size_);
     }
 
     static_assert(sizeof(message) % ALIGN_BYTES == 0, "message unaligned");
@@ -287,26 +289,26 @@ namespace cmk {
     };
 
     // utility function to pick optimal send mechanism
-    inline void send_helper_(int pe, message* msg)
+    inline void send_helper_(int pe, message_ptr<>&& msg)
     {
         // NOTE ( we only need to pack when we're going off-node )
         if (pe == cmk::all)
         {
             pack_message(msg);
 
-            CmiSyncBroadcastAllAndFree(msg->total_size_, (char*) msg);
+            CmiSyncBroadcastAllAndFree(msg->total_size_, (char*) msg.release());
         }
         else
         {
             if (CmiNodeOf(pe) == CmiMyNode())
             {
-                CmiPushPE(pe, msg);
+                CmiPushPE(pe, msg.release());
             }
             else
             {
                 pack_message(msg);
 
-                CmiSyncSendAndFree(pe, msg->total_size_, (char*) msg);
+                CmiSyncSendAndFree(pe, msg->total_size_, (char*) msg.release());
             }
         }
     }

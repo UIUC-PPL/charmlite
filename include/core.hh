@@ -49,7 +49,7 @@ namespace cmk {
         ConverseExit();
     }
 
-    void exit(message* msg);
+    void exit(message_ptr<>&& msg);
 }    // namespace cmk
 
 #endif

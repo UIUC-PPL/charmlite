@@ -30,7 +30,7 @@ struct payload_message : public cmk::message
     }
 };
 
-void phase_completed_(cmk::data_message<double>*);
+void phase_completed_(cmk::message_ptr<cmk::data_message<double>>&&);
 
 // a tuple with (sz, nIts) as its members
 using run_message_t = cmk::data_message<std::tuple<std::size_t, std::size_t>>;
@@ -47,12 +47,13 @@ struct pingpong : public cmk::chare<pingpong, int>
     {
     }
 
-    void run(run_message_t* msg)
+    void run(cmk::message_ptr<run_message_t>&& msg)
     {
         auto& val = msg->value();
         auto& sz = std::get<1>(val);
         // allocate the payload
-        auto* payload = new (sizeof(cmk::message) + sz) payload_message(sz);
+        cmk::message_ptr<payload_message> payload(
+            new (sizeof(cmk::message) + sz) payload_message(sz));
         // reset the iteration counts
         this->it = 0;
         this->nIts = std::get<1>(val);
@@ -60,22 +61,24 @@ struct pingpong : public cmk::chare<pingpong, int>
         cmk::message::free(msg);
         // then GO!
         this->startTime = CmiWallTimer();
-        peer.send<payload_message, &pingpong::receive_message>(payload);
+        peer.send<payload_message, &pingpong::receive_message>(
+            std::move(payload));
     }
 
-    void receive_message(payload_message* msg)
+    void receive_message(cmk::message_ptr<payload_message>&& msg)
     {
         if ((this->index() == 0) && (++(this->it) == this->nIts))
         {
             auto endTime = CmiWallTimer();
             auto cb = cmk::callback<cmk::data_message<double>>::construct<
                 phase_completed_>(0);
-            cb.send(new cmk::data_message<double>(endTime - this->startTime));
-            cmk::message::free(msg);
+            cb.send(cmk::make_message<cmk::data_message<double>>(
+                endTime - this->startTime));
         }
         else
         {
-            peer.send<payload_message, &pingpong::receive_message>(msg);
+            peer.send<payload_message, &pingpong::receive_message>(
+                std::move(msg));
         }
     }
 };
@@ -83,10 +86,9 @@ struct pingpong : public cmk::chare<pingpong, int>
 CthThread th;
 double lastTime;
 
-void phase_completed_(cmk::data_message<double>* msg)
+void phase_completed_(cmk::message_ptr<cmk::data_message<double>>&& msg)
 {
     lastTime = msg->value();
-    cmk::message::free(msg);
     CthAwaken(th);
 }
 
@@ -106,13 +108,12 @@ int main(int argc, char** argv)
         CmiPrintf(
             "main> pingpong with %luB payload and %lu iterations\n", sz, nIts);
         // allocate the launch pack
-        auto* msg = new run_message_t(sz, nIts);
+        auto msg = cmk::make_message<run_message_t>(sz, nIts);
         // then run through a warm up phase
-        grp[0].send<run_message_t, &pingpong::run>(
-            (run_message_t*) msg->clone());
+        grp[0].send<run_message_t, &pingpong::run>(msg->clone<run_message_t>());
         CthSuspend();
         // then run through the measurement phase
-        grp[0].send<run_message_t, &pingpong::run>(msg);
+        grp[0].send<run_message_t, &pingpong::run>(std::move(msg));
         CthSuspend();
         // print the final round-trip time
         CmiPrintf("main> roundtrip time was %g us\n",

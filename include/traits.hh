@@ -21,7 +21,7 @@ namespace cmk {
     using viable_argument_t = typename viable_argument<T>::type;
 
     template <typename T, typename Message>
-    using member_fn_t = void (T::*)(Message*);
+    using member_fn_t = void (T::*)(cmk::message_ptr<Message>&&);
 
     template <typename T>
     constexpr bool is_message_(void)

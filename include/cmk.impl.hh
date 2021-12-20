@@ -98,10 +98,15 @@ namespace cmk {
     struct function_wrapper_<Message, combiner_fn_t, Fn,
         typename std::enable_if<!std::is_same<message, Message>::value>::type>
     {
-        static message* impl_(message* lhs, message* rhs)
+        static message_ptr<> impl_(message_ptr<>&& lhs, message_ptr<>&& rhs)
         {
+            // capture and retype pointers
+            auto* lhs_typed = static_cast<Message*>(lhs.release());
+            message_ptr<Message> lhs_owned(lhs_typed);
+            auto* rhs_typed = static_cast<Message*>(rhs.release());
+            message_ptr<Message> rhs_owned(rhs_typed);
             // ( result should be implicitly castable to message )
-            return Fn(static_cast<Message*>(lhs), static_cast<Message*>(rhs));
+            return Fn(std::move(lhs_owned), std::move(rhs_owned));
         }
 
         static constexpr combiner_fn_t<message> fn(void)
@@ -114,9 +119,11 @@ namespace cmk {
     struct function_wrapper_<Message, callback_fn_t, Fn,
         typename std::enable_if<!std::is_same<message, Message>::value>::type>
     {
-        static void impl_(message* msg)
+        static void impl_(message_ptr<>&& msg)
         {
-            Fn(static_cast<Message*>(msg));
+            auto* typed = static_cast<Message*>(msg.release());
+            message_ptr<Message> owned(typed);
+            Fn(std::move(owned));
         }
 
         static constexpr callback_fn_t<message> fn(void)

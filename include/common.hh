@@ -58,9 +58,16 @@ namespace cmk {
     template <typename T>
     struct message_deleter_;
 
-    template <typename Message>
+    template <typename Message = message>
     using message_ptr =
         std::unique_ptr<Message>;    // , message_deleter_<Message>>;
+
+    template <typename Message, typename... Args>
+    inline message_ptr<Message> make_message(Args&&... args)
+    {
+        auto* msg = new Message(std::forward<Args>(args)...);
+        return message_ptr<Message>(msg);
+    }
 
     struct collection_index_hasher_
     {
@@ -73,10 +80,10 @@ namespace cmk {
         }
     };
 
-    inline void pack_message(message*& msg);
-    inline void unpack_message(message*& msg);
+    inline void pack_message(message_ptr<>& msg);
+    inline void unpack_message(message_ptr<>& msg);
 
-    using entry_fn_t = void (*)(void*, void*);
+    using entry_fn_t = void (*)(void*, message_ptr<>&&);
 
     struct entry_record_
     {
@@ -98,11 +105,10 @@ namespace cmk {
             return std::string(names[0]);
         }
 
-        void invoke(void* obj, void* raw) const
+        void invoke(void* obj, message_ptr<>&& raw) const
         {
-            auto* msg = static_cast<message*>(raw);
-            unpack_message(msg);
-            (this->fn_)(obj, msg);
+            unpack_message(raw);
+            (this->fn_)(obj, std::move(raw));
         }
     };
 
@@ -113,13 +119,14 @@ namespace cmk {
 
     // TODO ( rename to callback_fn_t )
     template <typename Message>
-    using callback_fn_t = void (*)(Message*);
+    using callback_fn_t = void (*)(message_ptr<Message>&&);
     using callback_table_t = std::vector<callback_fn_t<message>>;
     using callback_id_t = typename callback_table_t::size_type;
 
     // TODO ( rename to combiner_fn_t )
     template <typename Message>
-    using combiner_fn_t = Message* (*) (Message*, Message*);
+    using combiner_fn_t = message_ptr<Message> (*)(
+        message_ptr<Message>&&, message_ptr<Message>&&);
     using combiner_table_t = std::vector<combiner_fn_t<message>>;
     using combiner_id_t = typename combiner_table_t::size_type;
 
@@ -181,17 +188,17 @@ namespace cmk {
 
     void converse_handler_(void*);
 
-    void send(message*);
+    void send(message_ptr<>&&);
 
-    inline void send(message* msg, bool immediate)
+    inline void send(message_ptr<>&& msg, bool immediate)
     {
         if (immediate)
         {
-            converse_handler_(msg);
+            converse_handler_(msg.release());
         }
         else
         {
-            send(msg);
+            send(std::move(msg));
         }
     }
 }    // namespace cmk

@@ -11,12 +11,12 @@
 
 namespace cmk {
     // broadcasts an exit message to all pes
-    void exit(void)
+    inline void exit(void)
     {
-        auto* msg = new message();
+        auto msg = cmk::make_message<message>();
         new (&(msg->dst_))
             destination(callback_helper_<message, exit>::id_, cmk::all);
-        send(msg);
+        send(std::move(msg));
     }
 }    // namespace cmk
 

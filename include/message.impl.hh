@@ -10,13 +10,13 @@ namespace cmk {
     private:
         template <typename U>
         static auto check_pack(std::nullptr_t)
-            -> decltype(U::pack(std::declval<U*&>()));
+            -> decltype(U::pack(std::declval<message_ptr<U>&>()));
         template <typename U>
         static std::nullptr_t check_pack(...);
 
         template <typename U>
         static auto check_unpack(std::nullptr_t)
-            -> decltype(U::unpack(std::declval<U*&>()));
+            -> decltype(U::unpack(std::declval<message_ptr<U>&>()));
         template <typename U>
         static std::nullptr_t check_unpack(...);
 
@@ -51,14 +51,15 @@ namespace cmk {
         typename std::enable_if<message_properties_<Message>::value()>::type>
     {
     private:
-        static void pack_impl_(message*& msg)
+        static void pack_impl_(message_ptr<>& msg)
         {
-            Message::pack(reinterpret_cast<Message*&>(msg));
+            Message::pack(reinterpret_cast<message_ptr<Message>&>(msg));
         }
 
-        static void unpack_impl_(message*& msg)
+        static void unpack_impl_(message_ptr<>& msg)
         {
-            Message::unpack(reinterpret_cast<Message*&>(msg));
+            // TODO ( are these valid conversions? )
+            Message::unpack(reinterpret_cast<message_ptr<Message>&>(msg));
         }
 
     public:

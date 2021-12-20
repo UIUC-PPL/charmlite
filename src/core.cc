@@ -65,22 +65,18 @@ namespace cmk {
 
     // handle an exit message on each pe
     // circulate it if not received via broadcast
-    void exit(message* msg)
+    void exit(message_ptr<>&& msg)
     {
-        if (msg->is_broadcast())
-        {
-            message::free(msg);
-        }
-        else
+        if (!msg->is_broadcast())
         {
             msg->dst_.callback_fn().pe = cmk::all;
             pack_message(msg);    // XXX ( this is likely overkill )
-            CmiSyncBroadcastAndFree(msg->total_size_, (char*) msg);
+            CmiSyncBroadcastAndFree(msg->total_size_, (char*) msg.release());
         }
         CsdExitScheduler();
     }
 
-    inline void deliver_to_endpoint_(message* msg, bool immediate)
+    inline void deliver_to_endpoint_(message_ptr<>&& msg, bool immediate)
     {
         auto& ep = msg->dst_.endpoint();
         auto& buf = CpvAccess(collection_buffer_);
@@ -92,10 +88,11 @@ namespace cmk {
             auto& rec = CsvAccess(collection_kinds_)[kind - 1];
             // determine whether or not the creation message
             // is attached to an argument message
-            auto* opts = (char*) msg + sizeof(message);
+            auto* base = (char*) msg.get();
+            auto* opts = base + sizeof(message);
             auto offset = sizeof(message) + sizeof(collection_options_base_);
             auto* arg =
-                (msg->total_size_ == offset) ? nullptr : ((char*) msg + offset);
+                (msg->total_size_ == offset) ? nullptr : (base + offset);
             auto* obj =
                 rec(col, *(reinterpret_cast<collection_options_base_*>(opts)),
                     reinterpret_cast<message*>(arg));
@@ -114,9 +111,8 @@ namespace cmk {
                 auto& buffer = find->second;
                 while (!buffer.empty())
                 {
-                    auto* tmp = buffer.front().release();
+                    obj->deliver(std::move(buffer.front()), immediate);
                     buffer.pop_front();
-                    obj->deliver(tmp, immediate);
                 }
             }
         }
@@ -125,16 +121,16 @@ namespace cmk {
             auto search = tab.find(col);
             if (search == std::end(tab))
             {
-                buf[col].emplace_back(msg);
+                buf[col].emplace_back(std::move(msg));
             }
             else
             {
-                search->second->deliver(msg, immediate);
+                search->second->deliver(std::move(msg), immediate);
             }
         }
     }
 
-    inline void deliver_to_callback_(message* msg)
+    inline void deliver_to_callback_(message_ptr<>&& msg)
     {
 #if CMK_ERROR_CHECKING
         auto pe = msg->dst_.callback_fn().pe;
@@ -143,27 +139,27 @@ namespace cmk {
         // prepare message for local-processing
         unpack_message(msg);
         // then process it
-        (callback_for(msg))(msg);
+        (callback_for(msg))(std::move(msg));
     }
 
     void converse_handler_(void* raw)
     {
-        auto* msg = static_cast<message*>(raw);
+        message_ptr<> msg(static_cast<message*>(raw));
         // then determine how to route it
         switch (msg->dst_.kind())
         {
         case kEndpoint:
-            deliver_to_endpoint_(msg, true);
+            deliver_to_endpoint_(std::move(msg), true);
             break;
         case kCallback:
-            deliver_to_callback_(msg);
+            deliver_to_callback_(std::move(msg));
             break;
         default:
             CmiAbort("invalid message destination");
         }
     }
 
-    void send(message* msg)
+    void send(message_ptr<>&& msg)
     {
         auto& dst = msg->dst_;
         switch (dst.kind())
@@ -171,12 +167,12 @@ namespace cmk {
         case kCallback:
         {
             auto& cb = dst.callback_fn();
-            send_helper_(cb.pe, msg);
+            send_helper_(cb.pe, std::move(msg));
             break;
         }
         case kEndpoint:
             CmiAssert(!msg->has_collection_kind());
-            deliver_to_endpoint_(msg, false);
+            deliver_to_endpoint_(std::move(msg), false);
             break;
         default:
             CmiAbort("invalid message destination");
