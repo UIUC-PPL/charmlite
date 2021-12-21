@@ -209,7 +209,7 @@ namespace cmk {
         {
             collection_index_t id;
             base_type::next_index_(id);
-            auto a_msg = cmk::make_message<message<>>();
+            auto a_msg = cmk::make_message<message>();
             new (&a_msg->dst_)
                 destination(id, chare_bcast_root_, constructor<T, void>());
             call_construtor_<Mapper>(id, &opts, std::move(a_msg));

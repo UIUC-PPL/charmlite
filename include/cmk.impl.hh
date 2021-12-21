@@ -74,6 +74,7 @@ namespace cmk {
         return id;
     }
 
+    template <>
     message_kind_t message_helper_<message>::kind_ = 0;
 
     template <typename T>
