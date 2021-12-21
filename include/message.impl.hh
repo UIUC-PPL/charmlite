@@ -89,6 +89,12 @@ namespace cmk {
             return nullptr;
         }
     };
+
+    template <typename T>
+    struct is_packable
+    {
+        static constexpr auto value = message_properties_<T>::value();
+    };
 }    // namespace cmk
 
 #endif

@@ -29,6 +29,9 @@ namespace cmk {
     template <typename T>
     class collection_proxy_base_;
 
+    template <typename T>
+    struct is_packable;
+
     struct collection_index_t
     {
         std::uint32_t pe_;

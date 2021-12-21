@@ -19,16 +19,19 @@ struct payload_message : public cmk::message
     {
     }
 
-    static void pack(payload_message*& msg)
+    static void pack(cmk::message_ptr<payload_message>& msg)
     {
-        msg->data = msg->data - (std::uintptr_t) msg;
+        msg->data = msg->data - (std::uintptr_t) msg.get();
     }
 
-    static void unpack(payload_message*& msg)
+    static void unpack(cmk::message_ptr<payload_message>& msg)
     {
-        msg->data = msg->data + (std::uintptr_t) msg;
+        msg->data = msg->data + (std::uintptr_t) msg.get();
     }
 };
+
+static_assert(cmk::is_packable<payload_message>::value,
+    "expected payload mesasge to be packable");
 
 void phase_completed_(cmk::message_ptr<cmk::data_message<double>>&&);
 
