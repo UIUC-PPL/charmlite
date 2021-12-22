@@ -296,7 +296,7 @@ namespace cmk {
         {
             pack_message(msg);
 
-            int msg_size = msg->total_size_;
+            auto msg_size = msg->total_size_;
 
             CmiSyncBroadcastAllAndFree(msg_size, (char*) msg.release());
         }
@@ -310,7 +310,7 @@ namespace cmk {
             {
                 pack_message(msg);
 
-                int msg_size = msg->total_size_;
+                auto msg_size = msg->total_size_;
 
                 CmiSyncSendAndFree(pe, msg_size, (char*) msg.release());
             }
