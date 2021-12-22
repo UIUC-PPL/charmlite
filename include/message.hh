@@ -296,7 +296,9 @@ namespace cmk {
         {
             pack_message(msg);
 
-            CmiSyncBroadcastAllAndFree(msg->total_size_, (char*) msg.release());
+            auto msg_size = msg->total_size_;
+
+            CmiSyncBroadcastAllAndFree(msg_size, (char*) msg.release());
         }
         else if (pe == cmk::all_nodes)
         {
@@ -314,7 +316,9 @@ namespace cmk {
             {
                 pack_message(msg);
 
-                CmiSyncSendAndFree(pe, msg->total_size_, (char*) msg.release());
+                auto msg_size = msg->total_size_;
+
+                CmiSyncSendAndFree(pe, msg_size, (char*) msg.release());
             }
         }
     }
