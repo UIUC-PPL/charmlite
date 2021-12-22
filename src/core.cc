@@ -69,7 +69,7 @@ namespace cmk {
     {
         if (!msg->is_broadcast())
         {
-            msg->dst_.callback_fn().pe = cmk::all;
+            msg->dst_.callback_fn().pe = cmk::all_pes;
             pack_message(msg);    // XXX ( this is likely overkill )
             CmiSyncBroadcastAndFree(msg->total_size_, (char*) msg.release());
         }
@@ -134,7 +134,7 @@ namespace cmk {
     {
 #if CMK_ERROR_CHECKING
         auto pe = msg->dst_.callback_fn().pe;
-        CmiEnforce(pe == cmk::all || pe == CmiMyPe());
+        CmiEnforce(pe == cmk::all_pes || pe == CmiMyPe());
 #endif
         // prepare message for local-processing
         unpack_message(msg);

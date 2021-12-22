@@ -292,7 +292,7 @@ namespace cmk {
     inline void send_helper_(int pe, message_ptr<>&& msg)
     {
         // NOTE ( we only need to pack when we're going off-node )
-        if (pe == cmk::all)
+        if (pe == cmk::all_pes)
         {
             pack_message(msg);
 
@@ -304,7 +304,9 @@ namespace cmk {
         {
             pack_message(msg);
 
-            CmiSyncNodeBroadcastAllAndFree(msg->total_size_, (char*) msg.release());
+            auto msg_size = msg->total_size_;
+
+            CmiSyncNodeBroadcastAllAndFree(msg_size, (char*) msg.release());
         }
         else
         {
