@@ -161,6 +161,7 @@ namespace cmk {
     constexpr collection_kind_t nil_kind_ = 0;
     // TODO ( make these more distinct? )
     constexpr int all = -1;
+    constexpr int all_nodes = -2;
     constexpr auto chare_bcast_root_ =
         std::numeric_limits<chare_index_t>::max();
 

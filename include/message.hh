@@ -298,6 +298,12 @@ namespace cmk {
 
             CmiSyncBroadcastAllAndFree(msg->total_size_, (char*) msg.release());
         }
+        else if (pe == cmk::all_nodes)
+        {
+            pack_message(msg);
+
+            CmiSyncNodeBroadcastAllAndFree(msg->total_size_, (char*) msg.release());
+        }
         else
         {
             if (CmiNodeOf(pe) == CmiMyNode())

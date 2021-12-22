@@ -257,7 +257,7 @@ namespace cmk {
         }
     };
 
-    template <typename T>
+    template <typename T, bool Node = false>
     class group_proxy : public collection_proxy_base_<T>
     {
         using base_type = collection_proxy_base_<T>;
@@ -307,11 +307,11 @@ namespace cmk {
                 auto* base = (char*) msg.get();
                 auto* opts =
                     reinterpret_cast<options_type*>(base + sizeof(message));
-                new (opts) options_type(CmiNumPes());
+                new (opts) options_type(Node ? CmiNumNodes() : CmiNumPes());
                 // copy the argument message onto it
                 pack_and_free_(base + offset, std::move(a_msg));
-                // broadcast the conjoined message to all PEs
-                send_helper_(cmk::all, std::move(msg));
+                // broadcast the conjoined message to all PEs/Nodes
+                send_helper_(Node ? cmk::all_nodes : cmk::all, std::move(msg));
             }
             return group_proxy<T>(id);
         }
