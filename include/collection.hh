@@ -1,46 +1,20 @@
-#ifndef __CMK_collection_HH__
-#define __CMK_collection_HH__
+#ifndef __CMK_COLLECTION_HH__
+#define __CMK_COLLECTION_HH__
 
-#include "callback.hh"
-#include "chare.hh"
-#include "ep.hh"
-#include "locmgr.hh"
-#include "message.hh"
+#include "collection.impl.hh"
 
 namespace cmk {
-    class collection_base_
-    {
-    protected:
-        collection_index_t id_;
-
-    public:
-        collection_base_(const collection_index_t& id)
-          : id_(id)
-        {
-        }
-        virtual ~collection_base_() = default;
-        virtual void* lookup(const chare_index_t&) = 0;
-        virtual void deliver(message_ptr<>&& msg, bool immediate) = 0;
-        virtual void contribute(message_ptr<>&& msg) = 0;
-
-        template <typename T>
-        inline T* lookup(const chare_index_t& idx)
-        {
-            return static_cast<T*>(this->lookup(idx));
-        }
-    };
-
     template <typename T, template <class> class Mapper>
-    class collection : public collection_base_
+    class collection : public collection_bridge_<T, Mapper>
     {
+        using parent_type = collection_bridge_<T, Mapper>;
+
     public:
-        using index_type = index_for_t<T>;
+        using index_type = typename parent_type::index_type;
 
     private:
-        locmgr<Mapper<index_type>> locmgr_;
-
         std::unordered_map<chare_index_t, message_buffer_t> buffers_;
-        std::unordered_map<chare_index_t, std::unique_ptr<T>> chares_;
+        message_buffer_t collective_buffer_;
 
     public:
         static_assert(
@@ -48,11 +22,13 @@ namespace cmk {
 
         collection(const collection_index_t& id,
             const collection_options<index_type>& opts, const message* msg)
-          : collection_base_(id)
+          : parent_type(id)
         {
             // need valid message and options or neither
             CmiEnforceMsg(
                 ((bool) opts == (bool) msg), "cannot seed collection");
+            // all collections start in an inserting state
+            this->set_insertion_status(true, {});
             if (msg)
             {
                 auto& end = opts.end();
@@ -72,6 +48,8 @@ namespace cmk {
                         this->deliver_now(std::move(clone));
                     }
                 }
+                // the default insertion phase concludes...
+                this->set_insertion_status(false, this->ready_callback_());
             }
         }
 
@@ -119,26 +97,29 @@ namespace cmk {
         bool try_deliver(message_ptr<>& msg)
         {
             auto& ep = msg->dst_.endpoint();
-            auto* rec = record_for(ep.entry);
+            auto* rec = msg->has_combiner() ? nullptr : record_for(ep.entry);
             auto& idx = ep.chare;
             auto pe = this->locmgr_.pe_for(idx);
             // TODO ( temporary constraint, elements only created on home pe )
-            if (rec->is_constructor_ && (pe == CmiMyPe()))
+            if (rec && rec->is_constructor_ && (pe == CmiMyPe()))
             {
                 auto* ch = static_cast<T*>((record_for<T>()).allocate());
                 // set properties of the newly created chare
                 property_setter_<T>()(ch, this->id_, idx);
                 // place the chare within our element list
-                auto ins = chares_.emplace(idx, ch);
+                auto ins = this->chares_.emplace(idx, ch);
                 CmiAssertMsg(ins.second, "insertion did not occur!");
+                CmiAssertMsg(!msg->is_broadcast(), "not implemented!");
                 // call constructor on chare
                 rec->invoke(ch, std::move(msg));
+                // notify all chare listeners
+                this->on_chare_arrival(ch, true);
                 // flush any messages we have for it
                 flush_buffers(idx);
             }
             else
             {
-                auto find = chares_.find(idx);
+                auto find = this->chares_.find(idx);
                 // if the element isn't found locally
                 if (find == std::end(this->chares_))
                 {
@@ -170,18 +151,27 @@ namespace cmk {
             auto& ep = msg->dst_.endpoint();
             if (ep.chare == chare_bcast_root_)
             {
-                auto root = locmgr_.root();
-                auto* obj = static_cast<chare_base_*>(this->lookup(root));
+                auto* root = this->root();
+                auto* obj = root ?
+                    static_cast<chare_base_*>(this->lookup(*root)) :
+                    nullptr;
                 if (obj == nullptr)
                 {
-                    // if the object is unavailable -- we have to reroute it
-                    // ( this could be a loopback, then we try again later )
-                    send_helper_(locmgr_.pe_for(root), std::move(msg));
+                    // if the object is unavailable -- we have to reroute/buffer it
+                    auto pe = root ? this->locmgr_.pe_for(*root) : CmiMyPe();
+                    if (pe == CmiMyPe())
+                    {
+                        this->collective_buffer_.emplace_back(std::move(msg));
+                    }
+                    else
+                    {
+                        send_helper_(pe, std::move(msg));
+                    }
                 }
                 else
                 {
                     // otherwise, we increment the broadcast count and go!
-                    ep.chare = root;
+                    ep.chare = *root;
                     ep.bcast = obj->last_bcast_ + 1;
                     handle_(record_for(ep.entry), static_cast<T*>(obj),
                         std::move(msg));
@@ -197,15 +187,36 @@ namespace cmk {
         inline void deliver_later(message_ptr<>&& msg)
         {
             auto& idx = msg->dst_.endpoint().chare;
-            auto pe = this->locmgr_.pe_for(idx);
+            auto pe = (idx == chare_bcast_root_) ? CmiMyPe() :
+                                                   this->locmgr_.pe_for(idx);
             send_helper_(pe, std::move(msg));
+        }
+
+        virtual void on_insertion_complete(void) override
+        {
+            while (!this->collective_buffer_.empty())
+            {
+                auto msg = std::move(this->collective_buffer_.front());
+                this->collective_buffer_.pop_front();
+                this->deliver_now(std::move(msg));
+            }
         }
 
         virtual void deliver(message_ptr<>&& msg, bool immediate) override
         {
             if (immediate)
             {
-                this->deliver_now(std::move(msg));
+                // collection-bound messages are routed to us, yay!
+                if (msg->for_collection())
+                {
+                    auto& entry = msg->dst_.endpoint().entry;
+                    auto* rec = record_for(entry);
+                    rec->invoke(this, std::move(msg));
+                }
+                else
+                {
+                    this->deliver_now(std::move(msg));
+                }
             }
             else
             {
@@ -218,6 +229,7 @@ namespace cmk {
             auto& ep = msg->dst_.endpoint();
             auto& idx = ep.chare;
             auto* obj = static_cast<chare_base_*>(this->lookup(idx));
+            CmiAssert(msg->has_combiner());
             // stamp the message with a sequence number
             ep.bcast = ++(obj->last_redn_);
             this->handle_reduction_message_(obj, std::move(msg));
@@ -231,7 +243,14 @@ namespace cmk {
         {
             auto& ep = msg->dst_.endpoint();
             auto& redn = ep.bcast;
+            auto& reducers = obj->reducers_;
             auto search = this->get_reducer_(obj, redn);
+            if (search == std::end(reducers))
+            {
+                // we couldn't get a hold of a reducer -- so move on
+                this->collective_buffer_.emplace_back(std::move(msg));
+                return;
+            }
             auto& reducer = search->second;
             reducer.received.emplace_back(std::move(msg));
             // when we've received all expected messages
@@ -268,7 +287,7 @@ namespace cmk {
                     this->deliver_later(std::move(lhs));
                 }
                 // erase the reducer (it's job is done)
-                obj->reducers_.erase(search);
+                reducers.erase(search);
             }
         }
 
@@ -282,7 +301,8 @@ namespace cmk {
             if (bcast == (base->last_bcast_ + 1))
             {
                 base->last_bcast_++;
-                auto children = this->locmgr_.upstream(idx);
+                CmiAssert(obj->association_);
+                const auto& children = obj->association_->children;
                 // ensure message is packed so we can safely clone it
                 pack_message(msg);
                 // send a copy of the message to all our children
@@ -307,17 +327,25 @@ namespace cmk {
         // get a chare's reducer, creating one if it doesn't already exist
         reducer_iterator_t get_reducer_(chare_base_* obj, bcast_id_t redn)
         {
+            // relationships are in flux during static insertion phases
+            // so we should not create a new reducer!
             auto& reducers = obj->reducers_;
+            if (this->is_inserting())
+            {
+                return std::end(reducers);
+            }
             auto find = reducers.find(redn);
             if (find == std::end(reducers))
             {
                 auto& idx = obj->index_;
                 // construct using most up-to-date knowledge of spanning tree
-                auto up = this->locmgr_.upstream(idx);
-                auto down = this->locmgr_.downstream(idx);
+                CmiAssert(obj->association_ && obj->association_->valid_parent);
+                const auto& up = obj->association_->children;
+                const auto& down = obj->association_->parent;
+                // CmiPrintf("(%u:%u)@%d> i have %lu children\n", this->id_.pe_, this->id_.id_, CmiMyPe(), up.size());
                 auto ins = reducers.emplace(std::piecewise_construct,
                     std::forward_as_tuple(idx),
-                    std::forward_as_tuple(std::move(up), std::move(down)));
+                    std::forward_as_tuple(up, down));
                 find = ins.first;
             }
             return find;
@@ -356,6 +384,12 @@ namespace cmk {
     {
         static collection_kind_t kind_;
     };
+
+    template <typename T, template <class> class Mapper>
+    inline collection_kind_t collection_kind(void)
+    {
+        return collection_helper_<collection<T, Mapper>>::kind_;
+    }
 }    // namespace cmk
 
 #endif

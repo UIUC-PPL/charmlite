@@ -52,6 +52,10 @@ namespace cmk {
         }
 
     public:
+        callback(void) = default;
+        callback(callback<Message>&&) = default;
+        callback(const callback<Message>&) = default;
+
         template <typename T>
         friend class collection_proxy_base_;
 
@@ -68,7 +72,7 @@ namespace cmk {
             this->imprint(msg->dst_);
         }
 
-        void send(message_ptr<Message>&& msg)
+        void send(message_ptr<Message>&& msg) const
         {
             this->imprint(msg);
             cmk::send(std::move(msg));
@@ -79,6 +83,11 @@ namespace cmk {
         {
             return callback<Message>(
                 callback_helper_<Message, Callback>::id_, pe);
+        }
+
+        operator bool(void) const
+        {
+            return (bool) this->dst_;
         }
     };
 }    // namespace cmk

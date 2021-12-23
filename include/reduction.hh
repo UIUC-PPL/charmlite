@@ -7,21 +7,7 @@
 // TODO ( converse collectives should be isolated/removed )
 
 namespace cmk {
-    void* converse_combiner_(int* size, void* local, void** remote, int count)
-    {
-        message_ptr<> lhs(static_cast<message*>(local));
-        auto comb = combiner_for(lhs);
-        CmiEnforce(comb != nullptr);
-        for (auto i = 0; i < count; i++)
-        {
-            auto& msg = remote[i];
-            message_ptr<> rhs(reinterpret_cast<message*>(msg));
-            CmiReference(msg);    // yielding will call free!
-            lhs = comb(std::move(lhs), std::move(rhs));
-        }
-        *size = (int) lhs->total_size_;
-        return lhs.release();
-    }
+    void* converse_combiner_(int* size, void* local, void** remote, int count);
 
     template <typename Message, combiner_fn_t<Message> Combiner,
         callback_fn_t<Message> Callback>
@@ -36,7 +22,8 @@ namespace cmk {
         CmiReduce(msg.release(), sz, converse_combiner_);
     }
 
-    message_ptr<> nop(message_ptr<>&& msg, message_ptr<>&&)
+    template <typename T = message>
+    message_ptr<T> nop(message_ptr<T>&& msg, message_ptr<T>&&)
     {
         return std::move(msg);
     }
