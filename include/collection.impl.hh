@@ -104,6 +104,10 @@ namespace cmk {
         }
     };
 
+    // this more or less implements the logic of hypercomm's
+    // tree builder... the code there is better commented for the time being:
+    // https://github.com/jszaday/hypercomm/blob/main/include/hypercomm/tree_builder/tree_builder.hpp
+    // TODO ( copy the comments from there)
     template <typename T, template <class> class Mapper>
     class collection_bridge_ : public collection_base_
     {
