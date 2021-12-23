@@ -20,6 +20,22 @@ namespace cmk {
     CpvDeclare(std::uint32_t, local_collection_count_);
     CpvDeclare(int, converse_handler_);
 
+    void* converse_combiner_(int* size, void* local, void** remote, int count)
+    {
+        message_ptr<> lhs(static_cast<message*>(local));
+        auto comb = combiner_for(lhs);
+        CmiEnforce(comb != nullptr);
+        for (auto i = 0; i < count; i++)
+        {
+            auto& msg = remote[i];
+            message_ptr<> rhs(reinterpret_cast<message*>(msg));
+            CmiReference(msg);    // yielding will call free!
+            lhs = comb(std::move(lhs), std::move(rhs));
+        }
+        *size = (int) lhs->total_size_;
+        return lhs.release();
+    }
+
     void initialize_globals_(void)
     {
         if (CmiMyRank() == 0)

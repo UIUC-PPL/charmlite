@@ -30,9 +30,9 @@ struct foo : public cmk::chare<foo, int>
     {
         CmiPrintf("ch%d@pe%d> %d+%d=%d\n", this->index(), CmiMyPe(), this->val,
             msg->val, this->val + msg->val);
-        // note -- this is a cross-pe reduction
-        // (cross-chare reductions not yet implemented)
-        cmk::reduce<cmk::message, cmk::nop, cmk::exit>(std::move(msg));
+        auto cb = cmk::callback<cmk::message>::construct<cmk::exit>(cmk::all);
+        this->element_proxy()
+            .contribute<cmk::message, cmk::nop>(std::move(msg), cb);
     }
 };
 

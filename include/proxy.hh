@@ -225,14 +225,24 @@ namespace cmk {
             return collection_proxy<T>(id);
         }
 
-        void done_inserting(void) {}
+        // TODO ( encode this information within the proxy -- this is NOT user-friendly )
+        template <template <class> class Mapper = default_mapper>
+        void done_inserting(void)
+        {
+            auto msg = make_message<data_message<bool>>(false);
+            new (&msg->dst_) destination(this->id_, chare_bcast_root_,
+                collection<T, Mapper>::receive_status());
+            msg->for_collection() = true;
+            auto size = msg->total_size_;
+            CmiSyncBroadcastAllAndFree(size, (char*) msg.release());
+        }
 
     private:
         template <template <class> class Mapper = default_mapper>
         static void call_construtor_(const collection_index_t& id,
             const options_type* opts, message_ptr<>&& a_msg)
         {
-            auto kind = collection_helper_<collection<T, Mapper>>::kind_;
+            auto kind = collection_kind<T, Mapper>();
             auto offset = sizeof(message);
             auto a_sz = a_msg ? a_msg->total_size_ : 0;
             message_ptr<> msg(
@@ -276,7 +286,8 @@ namespace cmk {
         T* local_branch(void)
         {
             auto* loc = lookup(this->id_);
-            return loc ? loc->template lookup<T>(CmiMyPe()) : nullptr;
+            auto idx = index_view<int>::encode(CmiMyPe());
+            return loc ? loc->template lookup<T>(idx) : nullptr;
         }
 
         template <typename... Args>
@@ -294,8 +305,7 @@ namespace cmk {
             })();
             {
                 using options_type = collection_options<int>;
-                auto kind =
-                    collection_helper_<collection<T, group_mapper>>::kind_;
+                auto kind = collection_kind<T, group_mapper>();
                 auto offset = sizeof(message) + sizeof(options_type);
                 auto total_size = offset + a_msg->total_size_;
                 message_ptr<> msg(new (total_size) message);

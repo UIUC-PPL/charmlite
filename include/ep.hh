@@ -83,6 +83,9 @@ namespace cmk {
     {
         return entry_fn_helper_<(&call_constructor_<T, Message>), true>::id_;
     }
+
+    template <typename T, template <class> class Mapper>
+    inline collection_kind_t collection_kind(void);
 }    // namespace cmk
 
 #endif
