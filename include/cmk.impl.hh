@@ -155,6 +155,29 @@ namespace cmk {
         register_function_<Message, callback_fn_t, Fn>(
             CsvAccess(callback_table_));
 
+    inline completion* system_detector_(void)
+    {
+        collection_index_t sys{.pe_ = cmk::all_pes, .id_ = 0};
+        auto& table = CpvAccess(collection_table_);
+        auto find = table.find(sys);
+        collection_base_* loc = nullptr;
+        if (find == std::end(table))
+        {
+            collection_options<int> opts(CmiNumPes());
+            auto msg = cmk::make_message<message>();
+            new (&msg->dst_) destination(
+                sys, chare_bcast_root_, constructor<completion, void>());
+            loc =
+                new collection<completion, group_mapper>(sys, opts, msg.get());
+            table.emplace(sys, loc);
+        }
+        else
+        {
+            loc = find->second.get();
+        }
+        auto idx = index_view<int>::encode(CmiMyPe());
+        return loc->template lookup<completion>(idx);
+    }
 }    // namespace cmk
 
 #endif

@@ -34,7 +34,7 @@ namespace cmk {
 
     struct collection_index_t
     {
-        std::uint32_t pe_;
+        std::int32_t pe_;
         std::uint32_t id_;
 
         inline bool operator==(const collection_index_t& other) const

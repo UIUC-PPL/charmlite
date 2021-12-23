@@ -57,6 +57,9 @@ namespace cmk {
                 .bcast = 0};
         }
 
+        destination(destination&& dst) = default;
+        destination(const destination& dst) = default;
+
         inline s_callback_fn_& callback_fn(void)
         {
             CmiAssert(this->kind_ == kCallback);
@@ -88,6 +91,11 @@ namespace cmk {
             default:
                 return false;
             }
+        }
+
+        operator bool(void) const
+        {
+            return !(this->kind_ == kInvalid);
         }
 
         operator std::string(void) const

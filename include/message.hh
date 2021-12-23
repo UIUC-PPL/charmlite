@@ -67,6 +67,7 @@ namespace cmk {
         static constexpr auto has_continuation_ = has_combiner_ + 1;
         static constexpr auto has_collection_kind_ = has_continuation_ + 1;
         static constexpr auto is_packed_ = has_collection_kind_ + 1;
+        static constexpr auto for_collection_ = is_packed_ + 1;
 
     public:
         using flag_type = std::bitset<8>::reference;
@@ -113,6 +114,11 @@ namespace cmk {
         flag_type has_combiner(void)
         {
             return this->flags_[has_combiner_];
+        }
+
+        flag_type for_collection(void)
+        {
+            return this->flags_[for_collection_];
         }
 
         flag_type has_continuation(void)
