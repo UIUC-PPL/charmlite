@@ -278,6 +278,10 @@ namespace cmk {
         static_assert(std::is_same<index_type, int>::value,
             "groups must use integer indices");
 
+        template <typename Index>
+        using mapper_type = typename std::conditional<NodeGroup,
+            nodegroup_mapper<Index>, group_mapper<Index>>::type;
+
         group_proxy(const collection_index_t& id)
           : base_type(id)
         {
@@ -306,7 +310,7 @@ namespace cmk {
             })();
             {
                 using options_type = collection_options<int>;
-                auto kind = collection_kind<T, group_mapper>();
+                auto kind = collection_kind<T, mapper_type>();
                 auto offset = sizeof(message) + sizeof(options_type);
                 auto total_size = offset + a_msg->total_size_;
                 message_ptr<> msg(new (total_size) message);

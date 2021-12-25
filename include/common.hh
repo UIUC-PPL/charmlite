@@ -159,7 +159,6 @@ namespace cmk {
 
     constexpr entry_id_t nil_entry_ = 0;
     constexpr collection_kind_t nil_kind_ = 0;
-    // TODO ( make these more distinct? )
     constexpr int all_pes = -1;
     constexpr int all_nodes = -2;
     constexpr auto chare_bcast_root_ =
