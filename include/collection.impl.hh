@@ -89,7 +89,10 @@ namespace cmk {
             }
         }
 
-        std::nullptr_t ready_callback_(void) {}
+        std::nullptr_t ready_callback_(void)
+        {
+            return nullptr;
+        }
 
         bool is_inserting(void) const
         {
@@ -118,8 +121,7 @@ namespace cmk {
         static entry_id_t receive_status(void)
         {
             using receiver_type = member_fn_t<self_type, data_message<bool>>;
-            return cmk::entry<receiver_type,
-                (receiver_type) &self_type::receive_status>();
+            return cmk::entry<receiver_type, &self_type::receive_status>();
         }
 
     protected:
@@ -185,8 +187,8 @@ namespace cmk {
 
         callback<message> ready_callback_(void)
         {
-            return callback<message>::construct<&(
-                self_type::insertion_complete_)>(cmk::all);
+            return callback<message>::construct<
+                &self_type::insertion_complete_>(cmk::all);
         }
 
     private:
