@@ -157,7 +157,7 @@ namespace cmk {
 
     inline completion* system_detector_(void)
     {
-        collection_index_t sys{.pe_ = cmk::all, .id_ = 0};
+        collection_index_t sys{.pe_ = cmk::all_pes, .id_ = 0};
         auto& table = CpvAccess(collection_table_);
         auto find = table.find(sys);
         collection_base_* loc = nullptr;

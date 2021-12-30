@@ -82,7 +82,7 @@ namespace cmk {
             switch (this->kind_)
             {
             case kCallback:
-                return (this->impl_.callback_fn_.pe == cmk::all);
+                return (this->impl_.callback_fn_.pe == cmk::all_pes);
             case kEndpoint:
             {
                 auto& ep = this->impl_.endpoint_;

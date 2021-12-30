@@ -115,7 +115,7 @@ namespace cmk {
         template <typename T, template <class> class Mapper>
         friend class collection;
 
-        template <typename T, template <class> class Mapper>
+        template <typename T, template <class> class Mapper, typename Enable>
         friend class collection_bridge_;
 
         template <typename T, typename Enable>

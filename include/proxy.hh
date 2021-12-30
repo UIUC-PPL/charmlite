@@ -199,7 +199,7 @@ namespace cmk {
             base_type::next_index_(id);
             new (&a_msg->dst_)
                 destination(id, chare_bcast_root_, constructor<T, Message>());
-            call_construtor_<Mapper>(id, &opts, std::move(a_msg));
+            call_constructor_<Mapper>(id, &opts, std::move(a_msg));
             return collection_proxy<T>(id);
         }
 
@@ -212,7 +212,7 @@ namespace cmk {
             auto a_msg = cmk::make_message<message>();
             new (&a_msg->dst_)
                 destination(id, chare_bcast_root_, constructor<T, void>());
-            call_construtor_<Mapper>(id, &opts, std::move(a_msg));
+            call_constructor_<Mapper>(id, &opts, std::move(a_msg));
             return collection_proxy<T>(id);
         }
 
@@ -221,7 +221,7 @@ namespace cmk {
         {
             collection_index_t id;
             base_type::next_index_(id);
-            call_construtor_<Mapper>(id, nullptr, message_ptr<>());
+            call_constructor_<Mapper>(id, nullptr, message_ptr<>());
             return collection_proxy<T>(id);
         }
 
@@ -239,7 +239,7 @@ namespace cmk {
 
     private:
         template <template <class> class Mapper = default_mapper>
-        static void call_construtor_(const collection_index_t& id,
+        static void call_constructor_(const collection_index_t& id,
             const options_type* opts, message_ptr<>&& a_msg)
         {
             auto kind = collection_kind<T, Mapper>();
@@ -263,11 +263,11 @@ namespace cmk {
             }
             msg->total_size_ += (a_sz + sizeof(options_type));
             msg->has_collection_kind() = true;
-            send_helper_(cmk::all, std::move(msg));
+            send_helper_(cmk::all_pes, std::move(msg));
         }
     };
 
-    template <typename T>
+    template <typename T, bool NodeGroup = false>
     class group_proxy : public collection_proxy_base_<T>
     {
         using base_type = collection_proxy_base_<T>;
@@ -278,6 +278,10 @@ namespace cmk {
         static_assert(std::is_same<index_type, int>::value,
             "groups must use integer indices");
 
+        template <typename Index>
+        using mapper_type = typename std::conditional<NodeGroup,
+            nodegroup_mapper<Index>, group_mapper<Index>>::type;
+
         group_proxy(const collection_index_t& id)
           : base_type(id)
         {
@@ -286,7 +290,8 @@ namespace cmk {
         T* local_branch(void)
         {
             auto* loc = lookup(this->id_);
-            auto idx = index_view<int>::encode(CmiMyPe());
+            auto idx =
+                index_view<int>::encode(NodeGroup ? CmiMyNode() : CmiMyPe());
             return loc ? loc->template lookup<T>(idx) : nullptr;
         }
 
@@ -305,7 +310,7 @@ namespace cmk {
             })();
             {
                 using options_type = collection_options<int>;
-                auto kind = collection_kind<T, group_mapper>();
+                auto kind = collection_kind<T, mapper_type>();
                 auto offset = sizeof(message) + sizeof(options_type);
                 auto total_size = offset + a_msg->total_size_;
                 message_ptr<> msg(new (total_size) message);
@@ -317,11 +322,13 @@ namespace cmk {
                 auto* base = (char*) msg.get();
                 auto* opts =
                     reinterpret_cast<options_type*>(base + sizeof(message));
-                new (opts) options_type(CmiNumPes());
+                new (opts)
+                    options_type(NodeGroup ? CmiNumNodes() : CmiNumPes());
                 // copy the argument message onto it
                 pack_and_free_(base + offset, std::move(a_msg));
-                // broadcast the conjoined message to all PEs
-                send_helper_(cmk::all, std::move(msg));
+                // broadcast the conjoined message to all PEs/nodes
+                send_helper_(
+                    NodeGroup ? cmk::all_nodes : cmk::all_pes, std::move(msg));
             }
             return group_proxy<T>(id);
         }

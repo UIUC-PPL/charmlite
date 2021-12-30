@@ -15,7 +15,7 @@ namespace cmk {
     {
         auto msg = cmk::make_message<message>();
         new (&(msg->dst_))
-            destination(callback_helper_<message, exit>::id_, cmk::all);
+            destination(callback_helper_<message, exit>::id_, cmk::all_pes);
         send(std::move(msg));
     }
 }    // namespace cmk

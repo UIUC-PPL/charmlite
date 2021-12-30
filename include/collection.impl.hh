@@ -36,18 +36,24 @@ namespace cmk {
 
     // implements mapper-specific behaviors for
     // chare-collections -- i.e., listeners and spanning tree construction
-    template <typename T, template <class> class Mapper>
+    template <typename T, template <class> class Mapper,
+        typename Enable = void>
     class collection_bridge_;
 
-    template <typename T>
-    class collection_bridge_<T, group_mapper> : public collection_base_
+    template <typename T, template <class> class Mapper>
+    class collection_bridge_<T, Mapper,
+        typename std::enable_if<(std::is_same<nodegroup_mapper<index_for_t<T>>,
+                                     Mapper<index_for_t<T>>>::value ||
+            std::is_same<group_mapper<index_for_t<T>>,
+                Mapper<index_for_t<T>>>::value)>::type>
+      : public collection_base_
     {
     protected:
         std::unordered_map<chare_index_t, std::unique_ptr<T>> chares_;
         chare_index_t endpoint_;
 
         using index_type = index_for_t<T>;
-        group_mapper<index_type> locmgr_;
+        Mapper<index_type> locmgr_;
 
         collection_bridge_(const collection_index_t& id)
           : collection_base_(id)
@@ -62,14 +68,14 @@ namespace cmk {
             if (created)
             {
                 auto pe = this->locmgr_.pe_for(elt->index_);
-                auto n_children = CmiNumSpanTreeChildren(pe);
+                auto n_children = this->locmgr_.num_span_tree_children(pe);
                 CmiAssert(!assoc && (pe == CmiMyPe()));
                 assoc.reset(new association_);
                 if (n_children > 0)
                 {
                     // copied from qd.h -- memcheck seems to be legacy?
                     std::vector<index_type> child_pes(n_children);
-                    CmiSpanTreeChildren(pe, child_pes.data());
+                    this->locmgr_.span_tree_children(pe, child_pes.data());
                     auto& children = assoc->children;
                     children.reserve(n_children);
                     std::transform(std::begin(child_pes), std::end(child_pes),
@@ -77,7 +83,7 @@ namespace cmk {
                         index_view<index_type>::encode);
                     CmiAssert(n_children == children.size());
                 }
-                auto parent = CmiSpanTreeParent(pe);
+                auto parent = this->locmgr_.span_tree_parent(pe);
                 if (parent >= 0)
                 {
                     assoc->put_parent(index_view<index_type>::encode(parent));
@@ -111,7 +117,7 @@ namespace cmk {
     // tree builder... the code there is better commented for the time being:
     // https://github.com/jszaday/hypercomm/blob/main/include/hypercomm/tree_builder/tree_builder.hpp
     // TODO ( copy the comments from there)
-    template <typename T, template <class> class Mapper>
+    template <typename T, template <class> class Mapper, typename Enable>
     class collection_bridge_ : public collection_base_
     {
         using self_type = collection_bridge_<T, Mapper>;
@@ -188,7 +194,7 @@ namespace cmk {
         callback<message> ready_callback_(void)
         {
             return callback<message>::construct<
-                &self_type::insertion_complete_>(cmk::all);
+                &self_type::insertion_complete_>(cmk::all_pes);
         }
 
     private:
@@ -231,7 +237,7 @@ namespace cmk {
             }
             facade_(element_type elt)
               : elt_(elt)
-              , pe_(cmk::all)
+              , pe_(cmk::all_pes)
             {
             }
         };

@@ -14,6 +14,21 @@ namespace cmk {
         {
             return (idx % CmiNumPes());
         }
+
+        int num_span_tree_children(int pe)
+        {
+            return CmiNumSpanTreeChildren(pe);
+        }
+
+        void span_tree_children(int pe, int* children)
+        {
+            CmiSpanTreeChildren(pe, children);
+        }
+
+        int span_tree_parent(int pe)
+        {
+            return CmiSpanTreeParent(pe);
+        }
     };
 
     template <typename Index>
@@ -22,6 +37,33 @@ namespace cmk {
     template <>
     struct group_mapper<int> : public default_mapper<int>
     {
+    };
+
+    template <typename Index>
+    struct nodegroup_mapper;
+
+    template <>
+    struct nodegroup_mapper<int> : public default_mapper<int>
+    {
+        int pe_for(const chare_index_t& idx) const
+        {
+            return CmiNodeFirst(idx);
+        }
+
+        int num_span_tree_children(int node)
+        {
+            return CmiNumNodeSpanTreeChildren(node);
+        }
+
+        void span_tree_children(int node, int* children)
+        {
+            CmiNodeSpanTreeChildren(node, children);
+        }
+
+        int span_tree_parent(int node)
+        {
+            return CmiNodeSpanTreeParent(node);
+        }
     };
 
     template <typename Mapper>

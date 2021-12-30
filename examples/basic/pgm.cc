@@ -30,7 +30,7 @@ struct foo : public cmk::chare<foo, int>
     {
         CmiPrintf("ch%d@pe%d> %d+%d=%d\n", this->index(), CmiMyPe(), this->val,
             msg->val, this->val + msg->val);
-        auto cb = cmk::callback<cmk::message>::construct<cmk::exit>(cmk::all);
+        auto cb = cmk::callback<cmk::message>::construct<cmk::exit>(cmk::all_pes);
         this->element_proxy().contribute<cmk::message, cmk::nop>(
             std::move(msg), cb);
     }
