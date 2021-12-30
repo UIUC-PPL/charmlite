@@ -171,8 +171,8 @@ namespace cmk {
     protected:
         static void next_index_(collection_index_t& idx)
         {
-            new (&idx) collection_index_t{(std::uint32_t) CmiMyPe(),
-                CpvAccess(local_collection_count_)++};
+            new (&idx) collection_index_t{
+                CmiMyPe(), CpvAccess(local_collection_count_)++};
         }
     };
 
