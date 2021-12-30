@@ -1,7 +1,7 @@
 #ifndef __CMK_CHARE_HH__
 #define __CMK_CHARE_HH__
 
-#include "options.hh"
+#include "options.hpp"
 
 namespace cmk {
 

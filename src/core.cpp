@@ -1,7 +1,7 @@
-#include "core.hh"
+#include "core.hpp"
 
-#include "collection.hh"
-#include "proxy.hh"
+#include "collection.hpp"
+#include "proxy.hpp"
 
 namespace cmk {
     // these can be nix'd when we upgrade to c++17

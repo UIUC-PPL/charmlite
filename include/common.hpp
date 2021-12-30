@@ -206,6 +206,6 @@ namespace cmk {
     }
 }    // namespace cmk
 
-#include "destination.hh"
+#include "destination.hpp"
 
 #endif

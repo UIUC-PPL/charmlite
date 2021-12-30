@@ -1,10 +1,10 @@
 #ifndef __CMK_PROXY_HH__
 #define __CMK_PROXY_HH__
 
-#include "callback.hh"
-#include "chare.hh"
-#include "ep.hh"
-#include "locmgr.hh"
+#include "callback.hpp"
+#include "chare.hpp"
+#include "ep.hpp"
+#include "locmgr.hpp"
 
 namespace cmk {
 

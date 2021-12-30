@@ -3,7 +3,7 @@
 
 #include <algorithm>
 
-#include "common.hh"
+#include "common.hpp"
 
 namespace cmk {
 
