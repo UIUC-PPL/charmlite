@@ -1,7 +1,11 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
+
+if(CMAKE_VERSION VERSION_GREATER 3.22.1 OR CMAKE_VERSION VERSION_EQUAL 3.22.1)
+    cmake_policy(SET CMP0115 OLD)
+endif()
 
 project(CharmLite CXX)
 
@@ -30,10 +34,14 @@ else(CHARMC_PATH)
 endif(CHARMC_PATH)
 
 set(CMAKE_CXX_COMPILER "${CHARMC_PATH}/bin/charmc")
-set(CMAKE_CXX_FLAGS "-language converse++" CACHE STRING "Additional arguments to charmc" FORCE)
+set(CMAKE_CXX_FLAGS "-language converse++ -Wall -Wextra" CACHE STRING "Additional arguments to charmc" FORCE)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# Add cmake to module path
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+include(CharmLite_AddExecutable)
 
 add_subdirectory(src)
 
