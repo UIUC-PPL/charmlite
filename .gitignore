@@ -3,3 +3,6 @@ build
 
 # vs code
 .vscode
+
+# Makefiles
+Makefile

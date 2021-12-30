@@ -5,19 +5,21 @@ set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 
 project(CharmLite CXX)
 
+# Make sure all executables go in bin directory and all libraries go in lib
+# directory.
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
+
 # Make Default Build Type Release
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE
         "Release"
         CACHE
         STRING
-            "Configuration type (one of Debug, RelWithDebInfo, Release, MinSizeRel)"
+            "Configuration type (Debug, RelWithDebInfo, Release, MinSizeRel)"
         FORCE)
 endif()
-
-# TODO: Setup find module for Charm++
-# set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
-# find_package(charm++)
 
 # Replace this with find module system
 set(CHARMC_PATH $ENV{CHARM_HOME})
@@ -32,8 +34,6 @@ set(CMAKE_CXX_FLAGS "-language converse++" CACHE STRING "Additional arguments to
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-
-# TODO: Set-Up various build variable options
 
 add_subdirectory(src)
 
@@ -59,17 +59,29 @@ if(CHARMLITE_ENABLE_BENCHMARKS)
 endif()
 
 # Setup Installs
-# install(
-#     TARGETS charmlite
-#     EXPORT CharmLite)
 
-# install(
-#     EXPORT CharmLite
-#     FILE CharmLiteTargets.cmake
-#     NAMESPACE cmk::
-#     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/CharmLite)
+# Install charmlite library
+install(
+    TARGETS charmlite
+    EXPORT CharmLite
+    RUNTIME DESTINATION bin
+    ARCHIVE DESTINATION lib)
 
-# install(
-#     DIRECTORY include/
-#     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-#     FILES_MATCHING PATTERN "*.hh")
+# Install cmake targets to be used by CharmLiteConfig.cmake
+install(
+    EXPORT CharmLite
+    FILE CharmLiteTargets.cmake
+    NAMESPACE CharmLite::
+    DESTINATION lib/cmake/CharmLite)
+
+# Install header files
+install(
+    DIRECTORY include/
+    DESTINATION include
+    FILES_MATCHING PATTERN "*.hh")
+
+# Install config file
+install(
+    FILES cmake/CharmLiteConfig.cmake
+    DESTINATION lib/cmake/CharmLite
+)
