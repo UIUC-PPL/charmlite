@@ -1,7 +1,7 @@
 #ifndef __CMK_DESTINATION_HH__
 #define __CMK_DESTINATION_HH__
 
-#include "common.hh"
+#include "common.hpp"
 
 namespace cmk {
     struct destination

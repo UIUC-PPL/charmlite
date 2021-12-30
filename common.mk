@@ -9,12 +9,12 @@ FORMAT_OPTS?=-i
 CMK_NUM_PES?=2
 BINARY=pgm
 
-../../libs/core.o: ../../src/core.cc
+../../libs/core.o: ../../src/core.cpp
 	mkdir -p ../../libs
-	$(CXX) $(OPTS) -c -o ../../libs/core.o ../../src/core.cc
+	$(CXX) $(OPTS) -c -o ../../libs/core.o ../../src/core.cpp
 
 format:
-	clang-format $(FORMAT_OPTS) ../../src/*.cc ../../include/*.hh ./$(BINARY).cc
+	clang-format $(FORMAT_OPTS) ../../src/*.cpp ../../include/*.hpp ./$(BINARY).cpp
 
 clean:
 	rm -f ../../libs/core.o *.o charmrun $(BINARY)

@@ -3,7 +3,7 @@
  * author: j. szaday <szaday2@illinois.edu>
  */
 
-#include <cmk.hh>
+#include <charmlite.hpp>
 
 // a message with only POD members (constant-size)
 struct test_message : public cmk::plain_message<test_message>

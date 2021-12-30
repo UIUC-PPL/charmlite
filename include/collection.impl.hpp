@@ -1,9 +1,9 @@
 #ifndef __CMK_COLLECTION_IMPL_HH__
 #define __CMK_COLLECTION_IMPL_HH__
 
-#include "completion.hh"
-#include "locmgr.hh"
-#include "math.hh"
+#include "completion.hpp"
+#include "locmgr.hpp"
+#include "math.hpp"
 
 #include <functional>
 

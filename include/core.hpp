@@ -1,7 +1,7 @@
 #ifndef __CMK_CORE_HH__
 #define __CMK_CORE_HH__
 
-#include "common.hh"
+#include "common.hpp"
 #if CHARMLITE_TOPOLOGY
 #include "TopoManager.h"
 #include "spanningTree.h"

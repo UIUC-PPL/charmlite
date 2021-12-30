@@ -1,10 +1,10 @@
 #ifndef __CMK_COMPLETION_HH__
 #define __CMK_COMPLETION_HH__
 
-#include "core.hh"
-#include "message.hh"
-#include "proxy.hh"
-#include "reduction.hh"
+#include "core.hpp"
+#include "message.hpp"
+#include "proxy.hpp"
+#include "reduction.hpp"
 
 namespace cmk {
     // a chare that uses an int for its index

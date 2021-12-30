@@ -1,7 +1,7 @@
 #ifndef __CMK_TRAITS_HH__
 #define __CMK_TRAITS_HH__
 
-#include "message.hh"
+#include "message.hpp"
 
 namespace cmk {
 

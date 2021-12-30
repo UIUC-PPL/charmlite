@@ -1,7 +1,7 @@
 #ifndef __CMK_EP_HH__
 #define __CMK_EP_HH__
 
-#include "traits.hh"
+#include "traits.hpp"
 
 namespace cmk {
     inline const entry_record_* record_for(entry_id_t id)

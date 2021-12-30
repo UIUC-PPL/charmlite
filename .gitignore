@@ -1,0 +1,11 @@
+# Build directory
+build
+
+# vs code
+.vscode
+
+# Makefiles
+# Makefile
+
+# Charmrun
+charmrun
