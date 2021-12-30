@@ -1,8 +1,8 @@
 #ifndef __CMK_REDUCTION_HH__
 #define __CMK_REDUCTION_HH__
 
-#include "callback.hpp"
-#include "message.hpp"
+#include <charmlite/core/callback.hpp>
+#include <charmlite/core/message.hpp>
 
 // TODO ( converse collectives should be isolated/removed )
 

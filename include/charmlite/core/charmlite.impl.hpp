@@ -1,8 +1,9 @@
 #ifndef __CMK_IMPL_HH__
 #define __CMK_IMPL_HH__
 
-#include "ep.hpp"
-#include "message.impl.hpp"
+#include <charmlite/core/ep.hpp>
+#include <charmlite/core/message.impl.hpp>
+
 
 /* registers all user data-types with the RTS
  */

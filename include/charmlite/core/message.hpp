@@ -4,7 +4,7 @@
 #include <array>
 #include <bitset>
 
-#include "common.hpp"
+#include <charmlite/core/common.hpp>
 
 namespace cmk {
     using message_deleter_t = void (*)(void*);

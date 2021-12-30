@@ -3,7 +3,7 @@
 
 #include <algorithm>
 
-#include "common.hpp"
+#include <charmlite/core/common.hpp>
 
 namespace cmk {
 

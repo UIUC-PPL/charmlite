@@ -1,7 +1,7 @@
 #ifndef __CMK_CALLBACK_HH__
 #define __CMK_CALLBACK_HH__
 
-#include "message.hpp"
+#include <charmlite/core/message.hpp>
 
 namespace cmk {
 

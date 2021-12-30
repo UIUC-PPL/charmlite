@@ -1,10 +1,10 @@
 #ifndef __CMK_PROXY_HH__
 #define __CMK_PROXY_HH__
 
-#include "callback.hpp"
-#include "chare.hpp"
-#include "ep.hpp"
-#include "locmgr.hpp"
+#include <charmlite/core/callback.hpp>
+#include <charmlite/core/chare.hpp>
+#include <charmlite/core/ep.hpp>
+#include <charmlite/core/locmgr.hpp>
 
 namespace cmk {
 

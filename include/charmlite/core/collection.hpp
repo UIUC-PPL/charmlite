@@ -1,7 +1,7 @@
 #ifndef __CMK_COLLECTION_HH__
 #define __CMK_COLLECTION_HH__
 
-#include "collection.impl.hpp"
+#include <charmlite/core/collection.impl.hpp>
 
 namespace cmk {
     template <typename T, template <class> class Mapper>
