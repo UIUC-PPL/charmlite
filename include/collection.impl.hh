@@ -37,7 +37,7 @@ namespace cmk {
     // implements mapper-specific behaviors for
     // chare-collections -- i.e., listeners and spanning tree construction
     template <typename T, template <class> class Mapper,
-        typename IsGroup = void>
+        typename Enable = void>
     class collection_bridge_;
 
     template <typename T, template <class> class Mapper>
@@ -117,8 +117,8 @@ namespace cmk {
     // tree builder... the code there is better commented for the time being:
     // https://github.com/jszaday/hypercomm/blob/main/include/hypercomm/tree_builder/tree_builder.hpp
     // TODO ( copy the comments from there)
-    template <typename T, template <class> class Mapper, typename IsGroup>
-    class collection_bridge_ : public collection_base_
+    template <typename T, template <class> class Mapper>
+    class collection_bridge_<T, Mapper> : public collection_base_
     {
         using self_type = collection_bridge_<T, Mapper>;
         using element_type = chare_base_*;
