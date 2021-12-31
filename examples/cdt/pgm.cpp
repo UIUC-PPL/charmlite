@@ -7,8 +7,7 @@
  * author: j. szaday <szaday2@illinois.edu>
  */
 
-#include <charmlite.hpp>
-#include <completion.hpp>
+#include <charmlite/charmlite.hpp>
 
 // a callback to resume the main thread
 void resume_main_(cmk::message_ptr<>&& msg);

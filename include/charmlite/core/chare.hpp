@@ -1,7 +1,7 @@
 #ifndef __CMK_CHARE_HH__
 #define __CMK_CHARE_HH__
 
-#include "options.hpp"
+#include <charmlite/core/options.hpp>
 
 namespace cmk {
 

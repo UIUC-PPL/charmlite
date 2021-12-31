@@ -1,10 +1,11 @@
 #ifndef __CMK_COMPLETION_HH__
 #define __CMK_COMPLETION_HH__
 
-#include "core.hpp"
-#include "message.hpp"
-#include "proxy.hpp"
-#include "reduction.hpp"
+#include <charmlite/core/core.hpp>
+#include <charmlite/core/message.hpp>
+#include <charmlite/core/proxy.hpp>
+
+#include <charmlite/algorithms/reduction.hpp>
 
 namespace cmk {
     // a chare that uses an int for its index

@@ -1,7 +1,7 @@
 #ifndef __CMK_OPTIONS_HH__
 #define __CMK_OPTIONS_HH__
 
-#include "common.hpp"
+#include <charmlite/core/common.hpp>
 
 namespace cmk {
     template <typename T, typename Enable = void>

@@ -1,9 +1,10 @@
 #ifndef __CMK_COLLECTION_IMPL_HH__
 #define __CMK_COLLECTION_IMPL_HH__
 
-#include "completion.hpp"
-#include "locmgr.hpp"
-#include "math.hpp"
+#include <charmlite/core/completion.hpp>
+#include <charmlite/core/locmgr.hpp>
+
+#include <charmlite/utilities/math.hpp>
 
 #include <functional>
 

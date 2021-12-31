@@ -1,7 +1,7 @@
-#include "core.hpp"
+#include <charmlite/core/core.hpp>
 
-#include "collection.hpp"
-#include "proxy.hpp"
+#include <charmlite/core/collection.hpp>
+#include <charmlite/core/proxy.hpp>
 
 namespace cmk {
     // these can be nix'd when we upgrade to c++17

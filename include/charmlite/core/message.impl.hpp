@@ -1,7 +1,7 @@
 #ifndef __CMK_MESSAGE_IMPL_HH__
 #define __CMK_MESSAGE_IMPL_HH__
 
-#include "message.hpp"
+#include <charmlite/core/message.hpp>
 
 namespace cmk {
     template <typename T>

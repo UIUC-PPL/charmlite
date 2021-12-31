@@ -1,7 +1,7 @@
 #ifndef __CMK_DESTINATION_HH__
 #define __CMK_DESTINATION_HH__
 
-#include "common.hpp"
+#include <charmlite/core/common.hpp>
 
 namespace cmk {
     struct destination

@@ -1,13 +1,13 @@
 #ifndef __CMK_HH__
 #define __CMK_HH__
 
-#include "collection.hpp"
-#include "core.hpp"
-#include "proxy.hpp"
-#include "reduction.hpp"
+#include <charmlite/core/collection.hpp>
+#include <charmlite/core/core.hpp>
+#include <charmlite/core/proxy.hpp>
+#include <charmlite/algorithms/reduction.hpp>
 
 // ( no reordering )
-#include "charmlite.impl.hpp"
+#include <charmlite/core/charmlite.impl.hpp>
 
 namespace cmk {
     // broadcasts an exit message to all pes
