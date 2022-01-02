@@ -198,7 +198,7 @@ namespace cmk {
             collection_index_t id;
             base_type::next_index_(id);
             new (&a_msg->dst_)
-                destination(id, chare_bcast_root_, constructor<T, Message>());
+                destination(id, chare_bcast_root_, constructor<T, message_ptr<Message>&&>());
             call_constructor_<Mapper>(id, &opts, std::move(a_msg));
             return collection_proxy<T>(id);
         }

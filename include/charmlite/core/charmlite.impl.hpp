@@ -4,7 +4,6 @@
 #include <charmlite/core/ep.hpp>
 #include <charmlite/core/message.impl.hpp>
 
-
 /* registers all user data-types with the RTS
  */
 

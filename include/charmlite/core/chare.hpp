@@ -58,6 +58,11 @@ namespace cmk {
         std::vector<chare_index_t> children;
         bool valid_parent;
 
+        association_(void)
+          : valid_parent(false)
+        {
+        }
+
         void put_child(const chare_index_t& index)
         {
             this->children.emplace_back(index);

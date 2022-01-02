@@ -37,8 +37,7 @@ namespace cmk {
 
     // implements mapper-specific behaviors for
     // chare-collections -- i.e., listeners and spanning tree construction
-    template <typename T, template <class> class Mapper,
-        typename Enable = void>
+    template <typename T, template <class> class Mapper, typename Enable = void>
     class collection_bridge_;
 
     template <typename T, template <class> class Mapper>
@@ -393,6 +392,8 @@ namespace cmk {
                 {
                     continue;
                 }
+                // TODO ( investigate whether this should be relaxed? )
+                //      ( maybe include chares without _ANY_ associatons? )
                 else if (!(ch->association_ && ch->association_->valid_parent))
                 {
                     found = ch.get();
