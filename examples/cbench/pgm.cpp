@@ -4,8 +4,9 @@
  */
 
 #include <charmlite/charmlite.hpp>
+#include <unistd.h>
 
-void resume_main_(cmk::message_ptr<>&&);
+void resume_main(cmk::message_ptr<>&&);
 
 struct communicator : public cmk::chare<communicator, int>
 {
@@ -13,10 +14,11 @@ struct communicator : public cmk::chare<communicator, int>
     int nIters;
     int it;
 
-    communicator(cmk::message_ptr<cmk::data_message<std::tuple<int, int>>>&& msg)
-    : nChares(std::get<0>(msg->value())),
-      nIters(std::get<1>(msg->value())),
-      it(0)
+    communicator(
+        cmk::message_ptr<cmk::data_message<std::tuple<int, int>>>&& msg)
+      : nChares(std::get<0>(msg->value()))
+      , nIters(std::get<1>(msg->value()))
+      , it(0)
     {
     }
 
@@ -26,7 +28,7 @@ struct communicator : public cmk::chare<communicator, int>
         {
             it = 0;
 
-            auto cb = cmk::callback<cmk::message>::construct<resume_main_>(0);
+            auto cb = cmk::callback<cmk::message>::construct<resume_main>(0);
             this->element_proxy().contribute<cmk::message, cmk::nop>(
                 std::move(msg), cb);
         }
@@ -49,10 +51,19 @@ struct communicator : public cmk::chare<communicator, int>
 
 CthThread th;
 
-void resume_main_(cmk::message_ptr<>&& msg)
+void resume_main(cmk::message_ptr<>&& msg)
 {
     CthAwaken(th);
 }
+
+struct arguments
+{
+    int nChares = 4 * CmiNumPes();
+    int nReps = 11;
+    int nIters = 129;
+};
+
+arguments parse_arguments(int argc, char** argv);
 
 int main(int argc, char** argv)
 {
@@ -63,18 +74,16 @@ int main(int argc, char** argv)
         th = CthSelf();
         CmiAssert(th && CthIsSuspendable(th));
         // set up the initial parameters
-        // TODO ( pull these from command-line )
-        auto nChares = 4 * CmiNumPes();
-        auto nReps = 11;
-        auto nIters = 129;
-        auto nSkip = nReps / 2;
+        auto args = parse_arguments(argc, argv);
         // create the collection
         using message_type = cmk::data_message<std::tuple<int, int>>;
-        auto imsg = cmk::make_message<message_type>(nChares, nIters);
-        auto opts = cmk::collection_options<int>(nChares);
-        auto arr = cmk::collection_proxy<communicator>::construct<message_type>(std::move(imsg), opts);
+        auto imsg = cmk::make_message<message_type>(args.nChares, args.nIters);
+        auto opts = cmk::collection_options<int>(args.nChares);
+        auto arr = cmk::collection_proxy<communicator>::construct<message_type>(
+            std::move(imsg), opts);
 
-        auto totalReps = nSkip + nReps;
+        int nSkip = args.nReps / 2;
+        auto totalReps = args.nReps + nSkip;
         double totalTime = 0;
 
         for (auto rep = 0; rep < totalReps; rep++)
@@ -95,13 +104,45 @@ int main(int argc, char** argv)
             }
         }
 
-        CmiPrintf("info> interleaved %d broadcasts and reductions\n", 4);
-        CmiPrintf("info> with %d chares\n", nChares);
+        CmiPrintf(
+            "info> interleaved %d broadcasts and reductions across %d chares\n",
+            args.nIters, args.nChares);
         CmiPrintf("info> average time per repetition: %g ms\n",
-            1e3 * (totalTime / nReps));
+            1e3 * (totalTime / args.nReps));
+        CmiPrintf("info> average time per broadcast+reduction: %g ns\n",
+            1e6 * (totalTime / (args.nIters * args.nReps)));
 
         cmk::exit();
     }
     cmk::finalize();
     return 0;
+}
+
+arguments parse_arguments(int argc, char** argv)
+{
+    arguments args;
+
+    int opt;
+    opterr = 0;
+
+    while ((opt = getopt(argc, argv, "i:r:k:")) != -1)
+    {
+        switch (opt)
+        {
+        case 'i':
+            args.nIters = atoi(optarg);
+            break;
+        case 'r':
+            args.nReps = atoi(optarg);
+            break;
+        case 'k':
+            args.nChares = atoi(optarg);
+            break;
+        case '?':
+            CmiError("error> unknown option, '%c'!\n", opt);
+            break;
+        }
+    }
+
+    return args;
 }
