@@ -1,9 +1,14 @@
-#include <charmlite/core/core.hpp>
-
-#include <charmlite/core/collection.hpp>
-#include <charmlite/core/proxy.hpp>
+#include <charmlite/charmlite.hpp>
 
 namespace cmk {
+
+    // Define globals
+    constexpr int all::pes;
+    constexpr int all::nodes;
+
+    constexpr entry_id_t helper_::nil_entry_;
+    constexpr chare_index_t helper_::chare_bcast_root_;
+
     // these can be nix'd when we upgrade to c++17
     constexpr int default_options<int>::start;
     constexpr int default_options<int>::step;
@@ -69,7 +74,7 @@ namespace cmk {
     {
         if (!msg->is_broadcast())
         {
-            msg->dst_.callback_fn().pe = cmk::all_pes;
+            msg->dst_.callback_fn().pe = cmk::all::pes;
             pack_message(msg);    // XXX ( this is likely overkill )
             CmiSyncBroadcastAndFree(msg->total_size_, (char*) msg.release());
         }
@@ -86,6 +91,7 @@ namespace cmk {
         {
             auto kind = (collection_kind_t) ep.entry;
             auto& rec = CsvAccess(collection_kinds_)[kind - 1];
+            CmiAssert(rec);
             // determine whether or not the creation message
             // is attached to an argument message
             auto* base = (char*) msg.get();
@@ -134,7 +140,7 @@ namespace cmk {
     {
 #if CMK_ERROR_CHECKING
         auto pe = msg->dst_.callback_fn().pe;
-        CmiEnforce(pe == cmk::all_pes || pe == CmiMyPe());
+        CmiEnforce(pe == cmk::all::pes || pe == CmiMyPe());
 #endif
         // prepare message for local-processing
         unpack_message(msg);
@@ -148,10 +154,10 @@ namespace cmk {
         // then determine how to route it
         switch (msg->dst_.kind())
         {
-        case kEndpoint:
+        case destination_kind::kEndpoint:
             deliver_to_endpoint_(std::move(msg), true);
             break;
-        case kCallback:
+        case destination_kind::kCallback:
             deliver_to_callback_(std::move(msg));
             break;
         default:
@@ -164,13 +170,13 @@ namespace cmk {
         auto& dst = msg->dst_;
         switch (dst.kind())
         {
-        case kCallback:
+        case destination_kind::kCallback:
         {
             auto& cb = dst.callback_fn();
             send_helper_(cb.pe, std::move(msg));
             break;
         }
-        case kEndpoint:
+        case destination_kind::kEndpoint:
             CmiAssert(!msg->has_collection_kind());
             deliver_to_endpoint_(std::move(msg), false);
             break;

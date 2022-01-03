@@ -1,7 +1,7 @@
-#ifndef __CMK_COMPLETION_HH__
-#define __CMK_COMPLETION_HH__
+#ifndef CHARMLITE_CORE_COMPLETION_HPP
+#define CHARMLITE_CORE_COMPLETION_HPP
 
-#include <charmlite/core/core.hpp>
+#include <charmlite/core/common.hpp>
 #include <charmlite/core/message.hpp>
 #include <charmlite/core/proxy.hpp>
 

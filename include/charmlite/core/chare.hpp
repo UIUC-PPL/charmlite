@@ -1,15 +1,13 @@
-#ifndef __CMK_CHARE_HH__
-#define __CMK_CHARE_HH__
+#ifndef CHARMLITE_CORE_CHARE_HPP
+#define CHARMLITE_CORE_CHARE_HPP
 
+#include <charmlite/core/common.hpp>
 #include <charmlite/core/options.hpp>
 
-namespace cmk {
+#include <memory>
+#include <unordered_map>
 
-    template <typename T>
-    struct chare_kind_helper_
-    {
-        static chare_kind_t kind_;
-    };
+namespace cmk {
 
     struct chare_record_
     {
@@ -31,6 +29,18 @@ namespace cmk {
         {
             ::operator delete(obj);
         }
+    };
+
+    using chare_table_t = std::vector<chare_record_>;
+    using chare_kind_t = typename chare_table_t::size_type;
+
+    // Shared between workers in a process
+    CsvExtern(chare_table_t, chare_table_);
+
+    template <typename T>
+    struct chare_kind_helper_
+    {
+        static chare_kind_t kind_;
     };
 
     template <typename T>

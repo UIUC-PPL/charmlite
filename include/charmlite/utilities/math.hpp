@@ -1,5 +1,5 @@
-#ifndef __CMK_MATH_HH__
-#define __CMK_MATH_HH__
+#ifndef CHARMLITE_UTILITIES_MATH_HPP
+#define CHARMLITE_UTILITIES_MATH_HPP
 
 #include <vector>
 
@@ -36,7 +36,7 @@ namespace cmk { namespace binary_tree {
         {
             res.push_back(right);
         }
-        return std::move(res);
+        return res;
     }
 }}    // namespace cmk::binary_tree
 

@@ -1,12 +1,18 @@
-#ifndef __CMK_MSG_HH__
-#define __CMK_MSG_HH__
+#ifndef CHARMLITE_CORE_MESSAGE_HPP
+#define CHARMLITE_CORE_MESSAGE_HPP
 
 #include <array>
 #include <bitset>
+#include <memory>
+#include <vector>
+
+#include <converse.h>
 
 #include <charmlite/core/common.hpp>
+#include <charmlite/core/destination.hpp>
 
 namespace cmk {
+
     using message_deleter_t = void (*)(void*);
     using message_packer_t = void (*)(message_ptr<>&);
     using message_unpacker_t = void (*)(message_ptr<>&);
@@ -36,30 +42,34 @@ namespace cmk {
         static message_kind_t kind_;
     };
 
-#define CMK_MESSAGE_FIELDS                                                     \
-    std::array<char, CmiMsgHeaderSizeBytes> core_;                             \
-    message_kind_t kind_;                                                      \
-    std::bitset<8> flags_;                                                     \
-    std::size_t total_size_;                                                   \
-    destination dst_;
-
     namespace {
         struct message_fields_
         {
-            CMK_MESSAGE_FIELDS;
+            std::array<char, CmiMsgHeaderSizeBytes> core_;
+            message_kind_t kind_;
+            std::bitset<8> flags_;
+            std::size_t total_size_;
+            destination dst_;
         };
     }    // namespace
 
     // pad the messages with extra room for a continuation
-    constexpr auto reserve_align =
-        (sizeof(message_fields_) + sizeof(destination)) % ALIGN_BYTES;
+    struct alignment
+    {
+        static constexpr auto reserve_align =
+            (sizeof(message_fields_) + sizeof(destination)) % ALIGN_BYTES;
+    };
     // TODO ( use std::byte if we upgrade )
-    using aligned_reserve_t =
-        std::array<std::uint8_t, sizeof(destination) + reserve_align>;
+    using aligned_reserve_t = std::array<std::uint8_t,
+        sizeof(destination) + alignment::reserve_align>;
 
     struct message
     {
-        CMK_MESSAGE_FIELDS;
+        std::array<char, CmiMsgHeaderSizeBytes> core_;
+        message_kind_t kind_;
+        std::bitset<8> flags_;
+        std::size_t total_size_;
+        destination dst_;
         aligned_reserve_t reserve_;
 
     private:
@@ -87,54 +97,24 @@ namespace cmk {
             CmiSetHandler(this, CpvAccess(converse_handler_));
         }
 
-        combiner_id_t* combiner(void)
-        {
-            if (this->has_combiner())
-            {
-                return reinterpret_cast<combiner_id_t*>(this->dst_.offset_());
-            }
-            else
-            {
-                return nullptr;
-            }
-        }
+        combiner_id_t* combiner(void);
 
-        destination* continuation(void)
-        {
-            if (this->has_continuation())
-            {
-                return reinterpret_cast<destination*>(this->reserve_.data());
-            }
-            else
-            {
-                return nullptr;
-            }
-        }
+        destination* continuation(void);
 
-        flag_type has_combiner(void)
-        {
-            return this->flags_[has_combiner_];
-        }
+        flag_type has_combiner(void);
+        bool has_combiner(void) const;
 
-        flag_type for_collection(void)
-        {
-            return this->flags_[for_collection_];
-        }
+        flag_type for_collection(void);
+        bool for_collection(void) const;
 
-        flag_type has_continuation(void)
-        {
-            return this->flags_[has_continuation_];
-        }
+        flag_type has_continuation(void);
+        bool has_continuation(void) const;
 
-        flag_type is_packed(void)
-        {
-            return this->flags_[is_packed_];
-        }
+        flag_type is_packed(void);
+        bool is_packed(void) const;
 
-        flag_type has_collection_kind(void)
-        {
-            return this->flags_[has_collection_kind_];
-        }
+        flag_type has_collection_kind(void);
+        bool has_collection_kind(void) const;
 
         template <typename T>
         static void free(std::unique_ptr<T>& msg)
@@ -142,120 +122,28 @@ namespace cmk {
             free(msg.release());
         }
 
-        const message_record_* record(void) const
-        {
-            if (this->kind_ == 0)
-            {
-                return nullptr;
-            }
-            else
-            {
-                return &(CsvAccess(message_table_)[this->kind_ - 1]);
-            }
-        }
+        const message_record_* record(void) const;
 
-        static void free(void* blk)
-        {
-            if (blk == nullptr)
-            {
-                return;
-            }
-            else
-            {
-                auto* msg = static_cast<message*>(blk);
-                auto* rec = msg->record();
-                if (rec == nullptr)
-                {
-                    message::operator delete(msg);
-                }
-                else
-                {
-                    rec->deleter_(msg);
-                }
-            }
-        }
+        static void free(void* blk);
 
-        bool is_cloneable(void) const
-        {
-            if (const_cast<message*>(this)->is_packed())
-            {
-                return true;
-            }
-            else
-            {
-                auto* rec = this->record();
-                return (rec == nullptr || rec->packer_ == nullptr);
-            }
-        }
+        bool is_cloneable(void) const;
 
         // clones a PACKED message
         template <typename T = message>
-        message_ptr<T> clone(void) const
-        {
-            CmiAssert(this->is_cloneable());
-            auto* typed = reinterpret_cast<T*>(
-                CmiCopyMsg((char*) this, this->total_size_));
-            return message_ptr<T>(typed);
-        }
+        message_ptr<T> clone(void) const;
 
-        void* operator new(std::size_t count, std::size_t sz)
-        {
-            CmiAssert(sz >= sizeof(message));
-            return CmiAlloc(sz);
-        }
+        void* operator new(std::size_t count, std::size_t sz);
 
-        void operator delete(void* blk, std::size_t sz)
-        {
-            CmiFree(blk);
-        }
+        void operator delete(void* blk, std::size_t sz);
 
-        void* operator new(std::size_t sz)
-        {
-            return CmiAlloc(sz);
-        }
+        void* operator new(std::size_t sz);
 
-        void operator delete(void* blk)
-        {
-            CmiFree(blk);
-        }
+        void operator delete(void* blk);
 
-        bool is_broadcast(void)
-        {
-            return this->dst_.is_broadcast();
-        }
+        bool is_broadcast(void) const;
     };
 
-    inline void pack_message(message_ptr<>& msg)
-    {
-        auto* rec = msg ? msg->record() : nullptr;
-        auto* fn = rec ? rec->packer_ : nullptr;
-        if (fn && !(msg->is_packed()))
-        {
-            fn(msg);
-            msg->is_packed() = true;
-        }
-    }
-
-    inline void unpack_message(message_ptr<>& msg)
-    {
-        auto* rec = msg ? msg->record() : nullptr;
-        auto* fn = rec ? rec->unpacker_ : nullptr;
-        if (fn && msg->is_packed())
-        {
-            fn(msg);
-            msg->is_packed() = false;
-        }
-    }
-
-    inline void pack_and_free_(char* dst, message_ptr<>&& src)
-    {
-        pack_message(src);
-        memcpy(dst, src.get(), src->total_size_);
-    }
-
     static_assert(sizeof(message) % ALIGN_BYTES == 0, "message unaligned");
-
-#undef CMK_MESSAGE_FIELDS
 
     template <typename T>
     struct plain_message : public message
@@ -295,41 +183,14 @@ namespace cmk {
     };
 
     // utility function to pick optimal send mechanism
-    inline void send_helper_(int pe, message_ptr<>&& msg)
-    {
-        // NOTE ( we only need to pack when we're going off-node )
-        if (pe == cmk::all_pes)
-        {
-            pack_message(msg);
+    inline void send_helper_(int pe, message_ptr<>&& msg);
 
-            auto msg_size = msg->total_size_;
+    inline void pack_message(message_ptr<>& msg);
 
-            CmiSyncBroadcastAllAndFree(msg_size, (char*) msg.release());
-        }
-        else if (pe == cmk::all_nodes)
-        {
-            pack_message(msg);
+    inline void unpack_message(message_ptr<>& msg);
 
-            auto msg_size = msg->total_size_;
+    inline void pack_and_free_(char* dst, message_ptr<>&& src);
 
-            CmiSyncNodeBroadcastAllAndFree(msg_size, (char*) msg.release());
-        }
-        else
-        {
-            if (CmiNodeOf(pe) == CmiMyNode())
-            {
-                CmiPushPE(pe, msg.release());
-            }
-            else
-            {
-                pack_message(msg);
-
-                auto msg_size = msg->total_size_;
-
-                CmiSyncSendAndFree(pe, msg_size, (char*) msg.release());
-            }
-        }
-    }
 }    // namespace cmk
 
 #endif

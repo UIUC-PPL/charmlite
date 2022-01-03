@@ -1,5 +1,5 @@
-#ifndef __CMK_LOCMGR_HH__
-#define __CMK_LOCMGR_HH__
+#ifndef CHARMLITE_CORE_LOCMGR_HPP
+#define CHARMLITE_CORE_LOCMGR_HPP
 
 #include <algorithm>
 

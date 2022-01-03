@@ -1,6 +1,7 @@
-#ifndef __CMK_CALLBACK_HH__
-#define __CMK_CALLBACK_HH__
+#ifndef CHARMLITE_CORE_CALLBACK_HPP
+#define CHARMLITE_CORE_CALLBACK_HPP
 
+#include <charmlite/core/common.hpp>
 #include <charmlite/core/message.hpp>
 
 namespace cmk {
@@ -35,7 +36,7 @@ namespace cmk {
 
     inline callback_fn_t<message> callback_for(const message_ptr<>& msg)
     {
-        return (msg->dst_.kind() == kCallback) ?
+        return (msg->dst_.kind() == destination_kind::kCallback) ?
             callback_for(msg->dst_.callback_fn().id) :
             nullptr;
     }
