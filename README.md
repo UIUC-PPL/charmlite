@@ -14,4 +14,5 @@ Status:
 - Add support for "location records" that indicate migratibility.
     - How should users specify whether elements can/not migrate?
 
-Overall... need more examples; feel free to _try_ porting your favorite example. (Be aware of collection communications limitations.)
+Overall... need more examples; feel free to _try_ porting your favorite example. Agenda:
+- Jacobi2d
