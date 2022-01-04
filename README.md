@@ -14,5 +14,76 @@ Status:
 - Add support for "location records" that indicate migratibility.
     - How should users specify whether elements can/not migrate?
 
+## Build Instructions:
+
+To build charmlite, the following dependecies are required:
+- A valid charm install and `${env:CHARM_HOME}` set to it.
+- A cmake version higher than or equal to 3.16
+- A C++11 conforming compiler
+
+Charmlite doesn't support in-source tree builds. The easiest way to build
+charmlite is as follows:-
+
+```
+$ git clone https://github.com/UIUC-PPL/charmlite
+$ cd charmlite && mkdir build && cd build
+$ cmake -DCMAKE_INSTALL_PREFIX=<installation directory> ..
+$ make -j$(nproc)
+$ make install
+```
+
+Other than the default cmake flags, Charmlite supports various options that
+the user can enable using cmake:-
+1. CHARMLITE_ENABLE_EXAMPLES - Enables building examples (default: ON)
+2. CHARMLITE_ENABLE_TESTS - Enables building and testing tests (default: OFF)
+3. CHARMLITE_ENABLE_BENCHMARKS - Enables building and testing benchmarks (default: OFF)
+4. CHARMLITE_BENCHMARK_PE - PE argument passed to Benchmarks (default: 2)
+
+## Using Charmlite in dependant applications:
+
+Users can use charmlite in an application that depends on it. A basic example
+is as follows:-
+
+Consider the following basic directory structure:-
+
+```
+$ tree my_application
+my_application
+├── CMakeLists.txt
+└── pgm.cpp
+```
+
+The following inclusions to CMakeLists.txt are crucial:-
+
+```
+cmake_minimum_required(VERSION 3.16)
+
+project(CharmLite CXX)
+
+find_package(CharmLite)
+
+add_executable(pgm pgm.cpp)
+target_link_libraries(pgm PUBLIC CharmLite::charmlite)
+```
+
+The notable additions to CMakeLists.txt here are `find_package(CharmLite)`
+and `target_link_libraries(<target> PUBLIC CharmLite::charmlite)`. 
+**find_package** tries to find charmlite installation while linking
+**CharmLite::charmlite** ensures proper headers and libraries pertaining
+to charmlite are included and linked.
+
+To build:
+
+```
+$ make build && cd build
+$ cmake -DCMAKE_PREFIX_PATH=<path to charmlite installation> ..
+$ make
+```
+
+Adding installation path to **CMAKE_PREFIX_PATH** allows cmake to find
+charmlite and set various charmlite related cmake flags.
+
+## Overall
+
 Overall... need more examples; feel free to _try_ porting your favorite example. Agenda:
 - Jacobi2d

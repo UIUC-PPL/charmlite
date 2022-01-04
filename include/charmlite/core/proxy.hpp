@@ -113,7 +113,7 @@ namespace cmk {
 
         element_proxy<T> operator[](const index_type& idx) const
         {
-            auto& view = index_view<index_type>::decode(idx);
+            auto view = index_view<index_type>::encode(idx);
             return element_proxy<T>(this->id_, view);
         }
 
