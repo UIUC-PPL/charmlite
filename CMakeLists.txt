@@ -61,6 +61,9 @@ if(CHARMLITE_ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
 
+# Benchmark related Flags
+set(CHARMLITE_BENCHMARK_PE 2 CACHE STRING "Commandline PE argument to Benchmarks")
+
 # Set-up benchmarks
 option(CHARMLITE_ENABLE_BENCHMARKS "Enable Benchmarking Framework" OFF)
 if(CHARMLITE_ENABLE_BENCHMARKS)
