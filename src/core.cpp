@@ -13,12 +13,12 @@ namespace cmk {
     constexpr int default_options<int>::start;
     constexpr int default_options<int>::step;
 
-    CsvDeclare(entry_table_t, entry_table_);
-    CsvDeclare(chare_table_t, chare_table_);
-    CsvDeclare(message_table_t, message_table_);
-    CsvDeclare(callback_table_t, callback_table_);
-    CsvDeclare(combiner_table_t, combiner_table_);
-    CsvDeclare(collection_kinds_t, collection_kinds_);
+    // CMK_DECLARE_SINGLETON(entry_table_t, entry_table_);
+    // CMK_DECLARE_SINGLETON(chare_table_t, chare_table_);
+    // CMK_DECLARE_SINGLETON(message_table_t, message_table_);
+    // CMK_DECLARE_SINGLETON(callback_table_t, callback_table_);
+    // CMK_DECLARE_SINGLETON(combiner_table_t, combiner_table_);
+    // CMK_DECLARE_SINGLETON(collection_kinds_t, collection_kinds_);
 
     CpvDeclare(collection_table_t, collection_table_);
     CpvDeclare(collection_buffer_t, collection_buffer_);
@@ -90,7 +90,7 @@ namespace cmk {
         if (msg->has_collection_kind())
         {
             auto kind = (collection_kind_t) ep.entry;
-            auto& rec = CsvAccess(collection_kinds_)[kind - 1];
+            auto& rec = CMK_ACCESS_SINGLETON(collection_kinds_)[kind - 1];
             CmiAssert(rec);
             // determine whether or not the creation message
             // is attached to an argument message

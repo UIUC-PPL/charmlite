@@ -72,8 +72,8 @@ namespace cmk {
     template <entry_fn_t Fn, bool Constructor>
     static entry_id_t register_entry_fn_(void)
     {
-        auto id = CsvAccess(entry_table_).size() + 1;
-        CsvAccess(entry_table_).emplace_back(Fn, Constructor);
+        auto id = CMK_ACCESS_SINGLETON(entry_table_).size() + 1;
+        CMK_ACCESS_SINGLETON(entry_table_).emplace_back(Fn, Constructor);
         return id;
     }
 
@@ -84,8 +84,9 @@ namespace cmk {
     template <typename T>
     static chare_kind_t register_chare_(void)
     {
-        auto id = CsvAccess(chare_table_).size() + 1;
-        CsvAccess(chare_table_).emplace_back(typeid(T).name(), sizeof(T));
+        auto id = CMK_ACCESS_SINGLETON(chare_table_).size() + 1;
+        CMK_ACCESS_SINGLETON(chare_table_)
+            .emplace_back(typeid(T).name(), sizeof(T));
         return id;
     }
 
@@ -108,8 +109,8 @@ namespace cmk {
     template <typename T, template <class> class Mapper>
     static collection_kind_t register_collection_(void)
     {
-        auto id = CsvAccess(collection_kinds_).size() + 1;
-        CsvAccess(collection_kinds_)
+        auto id = CMK_ACCESS_SINGLETON(collection_kinds_).size() + 1;
+        CMK_ACCESS_SINGLETON(collection_kinds_)
             .emplace_back(&construct_collection_<T, Mapper>);
         return id;
     }
@@ -131,8 +132,8 @@ namespace cmk {
             return 0;
 
         using properties_type = message_properties_extractor_<T>;
-        auto id = CsvAccess(message_table_).size() + 1;
-        CsvAccess(message_table_)
+        auto id = CMK_ACCESS_SINGLETON(message_table_).size() + 1;
+        CMK_ACCESS_SINGLETON(message_table_)
             .emplace_back(&message_deleter_impl_<T>, properties_type::packer(),
                 properties_type::unpacker());
         return id;
@@ -210,12 +211,12 @@ namespace cmk {
     template <typename Message, combiner_fn_t<Message> Fn>
     combiner_id_t combiner_helper_<Message, Fn>::id_ =
         register_function_<Message, combiner_fn_t, Fn>(
-            CsvAccess(combiner_table_));
+            CMK_ACCESS_SINGLETON(combiner_table_));
 
     template <typename Message, callback_fn_t<Message> Fn>
     callback_id_t callback_helper_<Message, Fn>::id_ =
         register_function_<Message, callback_fn_t, Fn>(
-            CsvAccess(callback_table_));
+            CMK_ACCESS_SINGLETON(callback_table_));
 
     inline completion* system_detector_(void)
     {

@@ -20,12 +20,12 @@ namespace cmk {
 
     inline combiner_fn_t<message> combiner_for(combiner_id_t id)
     {
-        return id ? CsvAccess(combiner_table_)[id - 1] : nullptr;
+        return id ? CMK_ACCESS_SINGLETON(combiner_table_)[id - 1] : nullptr;
     }
 
     inline callback_fn_t<message> callback_for(callback_id_t id)
     {
-        return id ? CsvAccess(callback_table_)[id - 1] : nullptr;
+        return id ? CMK_ACCESS_SINGLETON(callback_table_)[id - 1] : nullptr;
     }
 
     inline combiner_fn_t<message> combiner_for(const message_ptr<>& msg)

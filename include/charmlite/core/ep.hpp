@@ -14,7 +14,7 @@ namespace cmk {
         }
         else
         {
-            return &(CsvAccess(entry_table_)[id - 1]);
+            return &(CMK_ACCESS_SINGLETON(entry_table_)[id - 1]);
         }
     }
 

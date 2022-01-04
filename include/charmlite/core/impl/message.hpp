@@ -87,7 +87,7 @@ namespace cmk {
         }
         else
         {
-            return &(CsvAccess(message_table_)[this->kind_ - 1]);
+            return &(CMK_ACCESS_SINGLETON(message_table_)[this->kind_ - 1]);
         }
     }
 

@@ -35,7 +35,7 @@ namespace cmk {
     using chare_kind_t = typename chare_table_t::size_type;
 
     // Shared between workers in a process
-    CsvExtern(chare_table_t, chare_table_);
+    CMK_EXTERN_SINGLETON(chare_table_t, chare_table_);
 
     template <typename T>
     struct chare_kind_helper_
@@ -47,7 +47,7 @@ namespace cmk {
     const chare_record_& record_for(void)
     {
         auto id = chare_kind_helper_<T>::kind_;
-        return CsvAccess(chare_table_)[id - 1];
+        return CMK_ACCESS_SINGLETON(chare_table_)[id - 1];
     }
 
     template <typename T, typename Enable = void>
