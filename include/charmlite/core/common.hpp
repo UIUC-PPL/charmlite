@@ -37,10 +37,9 @@ namespace cmk {
         singleton& operator=(singleton const&) = delete;
         singleton& operator=(singleton&&) = delete;
 
-        static std::shared_ptr<value_type> instance()
+        static const std::unique_ptr<value_type>& instance()
         {
-            static std::shared_ptr<value_type> inst =
-                std::make_shared<value_type>();
+            static std::unique_ptr<value_type> inst{new value_type()};
 
             return inst;
         }
