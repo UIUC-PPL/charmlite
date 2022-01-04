@@ -1,10 +1,13 @@
 /* charmlite demo
  *
  * author: aditya bhosale <adityapb@illinois.edu>
+ *
+ * based on jacobi2d implementation in charm++
+ * https://github.com/UIUC-PPL/charm/tree/main/examples/charm%2B%2B/jacobi2d-2d-decomposition
  */
 
 #include <cstring>
-#include <charmlite.hpp>
+#include <charmlite/charmlite.hpp>
 
 #define LEFT 0
 #define RIGHT 1
@@ -12,8 +15,7 @@
 #define BOTTOM 3
 
 #define THRESHOLD 0.0004
-#define MAX_ITER 10000
-#define MAX_CHARE 10
+#define MAX_ITER 1000
 
 class index2d
 {
@@ -45,20 +47,21 @@ public:
 template <>
 struct cmk::index_view<index2d>
 {
-    static index2d decode(chare_index_t& idx)
+    static index2d& decode(chare_index_t& idx)
     {
-        // reinterpret the passed index as index2d
-        return index2d(idx / MAX_CHARE, idx % MAX_CHARE);
+        return reinterpret_cast<index2d&>(idx);
     }
 
-    static const index2d decode(const chare_index_t& idx)
+    static const index2d& decode(const chare_index_t& idx)
     {
-        return index2d(idx / MAX_CHARE, idx % MAX_CHARE);
+        return reinterpret_cast<const index2d&>(idx);
     }
 
     static chare_index_t encode(const index2d& idx)
     {
-        return idx.x * MAX_CHARE + idx.y;
+        chare_index_t encoded_idx = 0;
+        std::memcpy(&encoded_idx, &idx, sizeof(index2d));
+        return encoded_idx;
     }
 };
 
@@ -163,7 +166,11 @@ public:
     index2d this_index;
 
     jacobi(cmk::message_ptr<setup_message>&& msg) 
-        : iterations(0), neighbors(0), max_error(0), converged(0)
+        : iterations(0)
+          , neighbors(0)
+          , max_error(0)
+          , converged(0)
+          , received_ghosts(0)
           , array_dim_x(msg->array_dim_x) 
           , array_dim_y(msg->array_dim_x) 
           , block_dim_x(msg->block_dim_x) 
@@ -173,8 +180,6 @@ public:
           , maxiterations(msg->maxiterations) 
     {
         this_index = this->index();
-
-        CmiPrintf("(%i, %i) on pe %i\n", this_index.x, this_index.y, CmiMyPe());
 
         cmk::message::free(msg);
 
@@ -237,8 +242,6 @@ public:
 
         if(!left_bound)
         {
-            if(iterations == 1 && this_index.x == 0 && this_index.y == 0)
-                CmiPrintf("Sent from (0, 0) to right\n");
             cmk::message_ptr<ghost_message> msg(
                 new (msg_size_y) ghost_message(RIGHT, block_dim_y));
             ghost_data = (double*) msg->data;
@@ -249,8 +252,6 @@ public:
         }
         if(!right_bound)
         {
-            if(iterations == 1 && this_index.x == 0 && this_index.y == 0)
-                CmiPrintf("Sent from (0, 0) to left\n");
             cmk::message_ptr<ghost_message> msg(
                 new (msg_size_y) ghost_message(LEFT, block_dim_y));
             ghost_data = (double*) msg->data;
@@ -261,8 +262,6 @@ public:
         }
         if(!top_bound)
         {
-            if(iterations == 1 && this_index.x == 0 && this_index.y == 0)
-                CmiPrintf("Sent from (0, 0) to bottom\n");
             cmk::message_ptr<ghost_message> msg(
                 new (msg_size_x) ghost_message(BOTTOM, block_dim_x));
             ghost_data = (double*) msg->data;
@@ -273,8 +272,6 @@ public:
         }
         if(!bottom_bound)
         {
-            if(iterations == 1 && this_index.x == 0 && this_index.y == 0)
-                CmiPrintf("Sent from (0, 0) to top\n");
             cmk::message_ptr<ghost_message> msg(
                 new (msg_size_x) ghost_message(TOP, block_dim_x));
             ghost_data = (double*) msg->data;
@@ -283,19 +280,14 @@ public:
             this_proxy[index2d(this_index.x, this_index.y + 1)].send<
                 ghost_message, &jacobi::receive_ghosts>(std::move(msg));
         }
-
-        //dump_matrix(temperature);
     }
 
     void receive_ghosts(cmk::message_ptr<ghost_message>&& msg)
     {
-        if(iterations == 1)
-            CmiPrintf("Received from %i at (%i, %i), pe = %i\n", 
-                msg->direction, this_index.x, this_index.y, CmiMyPe());
         process_ghosts(msg->direction, msg->size, (double*) msg->data);
+        cmk::message::free(msg);
         if(++received_ghosts == neighbors)
         {
-            // received all neighbors, start next iteration
             received_ghosts = 0;
             compute();
         }
@@ -357,22 +349,15 @@ public:
         bool converged = (max_error <= THRESHOLD);
         auto msg = cmk::make_message<completion_message>(converged);
 
-        //auto cb = cmk::callback<cmk::message>::construct<jacobi::check_completion>(cmk::all_pes);
         auto cb = this_proxy.callback<completion_message, &jacobi::check_completion>();
         this->element_proxy().contribute<completion_message, 
             logical_and<completion_message>>(std::move(msg), cb);
-        //CmiPrintf("Done compute\n");
-        //dump_matrix(temperature);
     }
 
     void check_completion(cmk::message_ptr<completion_message>&& msg)
     {
         if(iterations == maxiterations || msg->converged)
-        {
-            CmiPrintf("Done!\n");
-            dump_matrix(temperature);
             cmk::exit();
-        }
         else
             begin_iteration();
     }
@@ -465,12 +450,6 @@ int main(int argc, char** argv)
         int num_chare_x = array_dim_x / block_dim_x;
         int num_chare_y = array_dim_y / block_dim_y;
 
-        num_chare_x = num_chare_x > MAX_CHARE ? MAX_CHARE : num_chare_x;
-        num_chare_y = num_chare_y > MAX_CHARE ? MAX_CHARE : num_chare_y;
-
-        block_dim_x = array_dim_x / num_chare_x;
-        block_dim_y = array_dim_y / num_chare_y;
-
         CmiPrintf("Running Jacobi on %d processors with (%d, %d) chares\n", 
                 CmiNumPes(), num_chare_x, num_chare_y);
         CmiPrintf("Array Dimensions: %d %d\n", array_dim_x, array_dim_y);
@@ -486,7 +465,6 @@ int main(int argc, char** argv)
                             array_dim_x, array_dim_y, block_dim_x, block_dim_y, 
                             num_chare_x, num_chare_y, maxiterations));
 
-        CmiPrintf("Done inserting\n");
         array.done_inserting();
     }
     cmk::finalize();
