@@ -1,16 +1,22 @@
-#ifndef __CMK_CORE_HH__
-#define __CMK_CORE_HH__
+#ifndef CHARMLITE_CHARMLITE_HPP
+#define CHARMLITE_CHARMLITE_HPP
 
-#include "common.hh"
-#if CHARMLITE_TOPOLOGY
-#include "TopoManager.h"
-#include "spanningTree.h"
+#include <charmlite/core/core.hpp>
 
-void CmiInitCPUTopology(char** argv);
-void CmiInitMemAffinity(char** argv);
-#endif
+#include <charmlite/algorithms/reduction.hpp>
+
+#include <charmlite/utilities/math.hpp>
+#include <charmlite/utilities/traits.hpp>
 
 namespace cmk {
+
+    template <typename Message, typename... Args>
+    inline message_ptr<Message> make_message(Args&&... args)
+    {
+        auto* msg = new Message(std::forward<Args>(args)...);
+        return message_ptr<Message>(msg);
+    }
+
     void start_fn_(int, char**);
 
     inline collection_base_* lookup(collection_index_t idx)
@@ -43,6 +49,18 @@ namespace cmk {
         CmiNodeAllBarrier();
     }
 
+    inline void send(message_ptr<>&& msg, bool immediate)
+    {
+        if (immediate)
+        {
+            converse_handler_(msg.release());
+        }
+        else
+        {
+            send(std::move(msg));
+        }
+    }
+
     inline void finalize(void)
     {
         CsdScheduleForever();
@@ -50,6 +68,15 @@ namespace cmk {
     }
 
     void exit(message_ptr<>&& msg);
+
+    // broadcasts an exit message to all pes
+    inline void exit(void)
+    {
+        auto msg = cmk::make_message<message>();
+        new (&(msg->dst_))
+            destination(callback_helper_<message, exit>::id_, cmk::all::pes);
+        send(std::move(msg));
+    }
 }    // namespace cmk
 
 #endif

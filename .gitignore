@@ -5,4 +5,7 @@ build
 .vscode
 
 # Makefiles
-Makefile
+# Makefile
+
+# Charmrun
+charmrun
