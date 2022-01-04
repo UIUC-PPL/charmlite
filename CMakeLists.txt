@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 
+# Enable out of source builds and source changes
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 
@@ -36,13 +37,14 @@ endif(CHARMC_PATH)
 set(CMAKE_CXX_COMPILER "${CHARMC_PATH}/bin/charmc")
 set(CMAKE_CXX_FLAGS "-language converse++ -Wall -Wextra" CACHE STRING "Additional arguments to charmc" FORCE)
 
+# Charmlite requires a conforming C++11 compiler
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Add cmake to module path
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
-include(CharmLite_AddExecutable)
 
+# Generate libcharmlite.a
 add_subdirectory(src)
 
 
@@ -86,7 +88,7 @@ install(
 install(
     DIRECTORY include/
     DESTINATION include
-    FILES_MATCHING PATTERN "*.hh")
+    FILES_MATCHING PATTERN "*.hpp")
 
 # Install config file
 install(
