@@ -36,7 +36,7 @@ namespace cmk {
 
     inline callback_fn_t<message> callback_for(const message_ptr<>& msg)
     {
-        return (msg->dst_.kind() == destination_kind::kCallback) ?
+        return (msg->dst_.kind() == destination_kind::Callback) ?
             callback_for(msg->dst_.callback_fn().id) :
             nullptr;
     }

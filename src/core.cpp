@@ -13,17 +13,34 @@ namespace cmk {
     constexpr int default_options<int>::start;
     constexpr int default_options<int>::step;
 
-    // CMK_DECLARE_SINGLETON(entry_table_t, entry_table_);
-    // CMK_DECLARE_SINGLETON(chare_table_t, chare_table_);
-    // CMK_DECLARE_SINGLETON(message_table_t, message_table_);
-    // CMK_DECLARE_SINGLETON(callback_table_t, callback_table_);
-    // CMK_DECLARE_SINGLETON(combiner_table_t, combiner_table_);
-    // CMK_DECLARE_SINGLETON(collection_kinds_t, collection_kinds_);
-
     CpvDeclare(collection_table_t, collection_table_);
     CpvDeclare(collection_buffer_t, collection_buffer_);
     CpvDeclare(std::uint32_t, local_collection_count_);
     CpvDeclare(int, converse_handler_);
+
+    completion* system_detector_(void)
+    {
+        collection_index_t sys{.pe_ = cmk::all::pes, .id_ = 0};
+        auto& table = CpvAccess(collection_table_);
+        auto find = table.find(sys);
+        collection_base_* loc = nullptr;
+        if (find == std::end(table))
+        {
+            collection_options<int> opts(CmiNumPes());
+            auto msg = cmk::make_message<message>();
+            new (&msg->dst_) destination(sys, cmk::helper_::chare_bcast_root_,
+                constructor<completion, void>());
+            loc =
+                new collection<completion, group_mapper>(sys, opts, msg.get());
+            table.emplace(sys, loc);
+        }
+        else
+        {
+            loc = find->second.get();
+        }
+        auto idx = index_view<int>::encode(CmiMyPe());
+        return loc->template lookup<completion>(idx);
+    }
 
     void initialize_globals_(void)
     {
@@ -154,10 +171,10 @@ namespace cmk {
         // then determine how to route it
         switch (msg->dst_.kind())
         {
-        case destination_kind::kEndpoint:
+        case destination_kind::Endpoint:
             deliver_to_endpoint_(std::move(msg), true);
             break;
-        case destination_kind::kCallback:
+        case destination_kind::Callback:
             deliver_to_callback_(std::move(msg));
             break;
         default:
@@ -170,13 +187,13 @@ namespace cmk {
         auto& dst = msg->dst_;
         switch (dst.kind())
         {
-        case destination_kind::kCallback:
+        case destination_kind::Callback:
         {
             auto& cb = dst.callback_fn();
             send_helper_(cb.pe, std::move(msg));
             break;
         }
-        case destination_kind::kEndpoint:
+        case destination_kind::Endpoint:
             CmiAssert(!msg->has_collection_kind());
             deliver_to_endpoint_(std::move(msg), false);
             break;

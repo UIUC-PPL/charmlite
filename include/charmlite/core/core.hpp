@@ -13,6 +13,7 @@
 #include <charmlite/core/message.hpp>
 #include <charmlite/core/options.hpp>
 #include <charmlite/core/proxy.hpp>
+#include <charmlite/core/register.hpp>
 
 #include <charmlite/core/impl/message.hpp>
 #include <charmlite/core/impl/proxy.hpp>

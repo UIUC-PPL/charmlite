@@ -23,20 +23,24 @@ void CmiInitMemAffinity(char** argv);
 
 namespace cmk {
 
-    // Helper singleton class
-    template <typename T>
+    // Helper Singleton Class
+    template <typename T, typename SingletonClass>
     class singleton
     {
     public:
+        using value_type = T;
+        using class_type = SingletonClass;
+
         // Non-copyable, non-movable
         singleton(singleton const&) = delete;
         singleton(singleton&&) = delete;
         singleton& operator=(singleton const&) = delete;
         singleton& operator=(singleton&&) = delete;
 
-        static std::shared_ptr<T> instance()
+        static std::shared_ptr<value_type> instance()
         {
-            static std::shared_ptr<T> inst = std::make_shared<T>();
+            static std::shared_ptr<value_type> inst =
+                std::make_shared<value_type>();
 
             return inst;
         }
@@ -45,12 +49,14 @@ namespace cmk {
         singleton() = default;
     };
 
-#define CMK_TYPE_DECL(type) type##t
-// Extern singleton is only for legacy purposes
-#define CMK_EXTERN_SINGLETON(type, obj_name) extern singleton<type> obj_name;
-// Assumes the type as obj_name_t (TODO: Change in next commit)
-#define CMK_ACCESS_SINGLETON(obj_name)                                         \
-    (*singleton<CMK_TYPE_DECL(obj_name)>::instance())
+#define CMK_GENERATE_SINGLETON(type, name)                                     \
+    class name : public singleton<type, name>                                  \
+    {                                                                          \
+    private:                                                                   \
+        name() = default;                                                      \
+    }
+
+#define CMK_ACCESS_SINGLETON(name) (*name::instance())
 
     struct message;
 
@@ -75,8 +81,8 @@ namespace cmk {
     using combiner_id_t = typename combiner_table_t::size_type;
 
     // Shared between workers in a process
-    CMK_EXTERN_SINGLETON(combiner_table_t, combiner_table_);
-    CMK_EXTERN_SINGLETON(callback_table_t, callback_table_);
+    CMK_GENERATE_SINGLETON(combiner_table_t, combiner_table_);
+    CMK_GENERATE_SINGLETON(callback_table_t, callback_table_);
 
     // Each worker has its own instance of these
     CpvExtern(std::uint32_t, local_collection_count_);
@@ -157,9 +163,9 @@ namespace cmk {
 
     enum class destination_kind : std::uint8_t
     {
-        kInvalid = 0,
-        kCallback,
-        kEndpoint
+        Invalid = 0,
+        Callback,
+        Endpoint
     };
 
     void converse_handler_(void*);
@@ -178,7 +184,7 @@ namespace cmk {
     using bcast_id_t = std::uint16_t;
 
     // Shared between workers in a process (contd.)
-    CMK_EXTERN_SINGLETON(entry_table_t, entry_table_);
+    CMK_GENERATE_SINGLETON(entry_table_t, entry_table_);
 
     struct all
     {

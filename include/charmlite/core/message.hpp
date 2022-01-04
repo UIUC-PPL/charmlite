@@ -34,7 +34,7 @@ namespace cmk {
 
     using message_table_t = std::vector<message_record_>;
     using message_kind_t = typename message_table_t::size_type;
-    CMK_EXTERN_SINGLETON(message_table_t, message_table_);
+    CMK_GENERATE_SINGLETON(message_table_t, message_table_);
 
     template <typename T>
     struct message_helper_

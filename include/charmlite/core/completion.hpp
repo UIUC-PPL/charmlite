@@ -128,7 +128,7 @@ namespace cmk {
         }
     };
 
-    inline completion* system_detector_(void);
+    completion* system_detector_(void);
 }    // namespace cmk
 
 #endif

@@ -35,7 +35,7 @@ namespace cmk {
     using chare_kind_t = typename chare_table_t::size_type;
 
     // Shared between workers in a process
-    CMK_EXTERN_SINGLETON(chare_table_t, chare_table_);
+    CMK_GENERATE_SINGLETON(chare_table_t, chare_table_);
 
     template <typename T>
     struct chare_kind_helper_

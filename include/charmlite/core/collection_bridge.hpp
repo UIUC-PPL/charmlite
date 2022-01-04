@@ -55,7 +55,7 @@ namespace cmk {
         message_buffer_t, collection_index_hasher_>;
 
     // Shared between workers in a process
-    CMK_EXTERN_SINGLETON(collection_kinds_t, collection_kinds_);
+    CMK_GENERATE_SINGLETON(collection_kinds_t, collection_kinds_);
     // Each worker has its own instance of these
     CpvExtern(collection_table_t, collection_table_);
     CpvExtern(collection_buffer_t, collection_buffer_);
