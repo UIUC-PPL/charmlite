@@ -98,3 +98,9 @@ install(
     FILES cmake/CharmLiteConfig.cmake
     DESTINATION lib/cmake/CharmLite
 )
+
+# Install charmrun
+install(
+    PROGRAMS ${CHARMC_PATH}/bin/charmrun
+    DESTINATION bin
+)
