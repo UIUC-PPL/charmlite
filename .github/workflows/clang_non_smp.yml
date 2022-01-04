@@ -31,7 +31,7 @@ jobs:
     - name: build-charm++
       run: |
         cd charm
-        ./build AMPI-only netlrts-linux-x86_64 clang --with-production --enable-error-checking -DCSD_NO_IDLE_TRACING=1 -DCSD_NO_PERIODIC=1
+        ./build AMPI-only netlrts-linux-x86_64 clang --with-production --without-romio --enable-error-checking -j2 -DCSD_NO_IDLE_TRACING=1 -DCSD_NO_PERIODIC=1
 
     # Build CharmLite
     - name: prep-charmlite
@@ -47,11 +47,11 @@ jobs:
       run: |
         export CHARM_HOME=$GITHUB_WORKSPACE/charm
         cd build/bin
-        $CHARM_HOME/bin/charmrun ./pgm_basic_example
-        $CHARM_HOME/bin/charmrun ./pgm_basic_example +p2
-        $CHARM_HOME/bin/charmrun ./pgm_cbench_benchmark
-        $CHARM_HOME/bin/charmrun ./pgm_cbench_benchmark +p2
-        $CHARM_HOME/bin/charmrun ./pgm_cdt_example
-        $CHARM_HOME/bin/charmrun ./pgm_cdt_example +p2
-        $CHARM_HOME/bin/charmrun ./pgm_pingpong_benchmark
-        $CHARM_HOME/bin/charmrun ./pgm_pingpong_benchmark +p2
+        $CHARM_HOME/bin/charmrun ++local ./pgm_basic_example
+        $CHARM_HOME/bin/charmrun ++local ./pgm_basic_example +p2
+        $CHARM_HOME/bin/charmrun ++local ./pgm_cbench_benchmark
+        $CHARM_HOME/bin/charmrun ++local ./pgm_cbench_benchmark +p2
+        $CHARM_HOME/bin/charmrun ++local ./pgm_cdt_example
+        $CHARM_HOME/bin/charmrun ++local ./pgm_cdt_example +p2
+        $CHARM_HOME/bin/charmrun ++local ./pgm_pingpong_benchmark
+        $CHARM_HOME/bin/charmrun ++local ./pgm_pingpong_benchmark +p2
