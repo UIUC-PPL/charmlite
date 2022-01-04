@@ -1,9 +1,10 @@
-#ifndef __CMK_DESTINATION_HH__
-#define __CMK_DESTINATION_HH__
+#ifndef CHARMLITE_CORE_DESTINATION_HPP
+#define CHARMLITE_CORE_DESTINATION_HPP
 
 #include <charmlite/core/common.hpp>
 
 namespace cmk {
+
     struct destination
     {
     private:
@@ -36,12 +37,12 @@ namespace cmk {
         friend struct message;
 
         destination(void)
-          : kind_(kInvalid)
+          : kind_(destination_kind::Invalid)
         {
         }
 
         destination(callback_id_t id, int pe)
-          : kind_(kCallback)
+          : kind_(destination_kind::Callback)
         {
             new (&(this->impl_.callback_fn_))
                 s_callback_fn_{.id = id, .pe = pe};
@@ -49,7 +50,7 @@ namespace cmk {
 
         destination(const collection_index_t& collection,
             const chare_index_t& chare, entry_id_t entry)
-          : kind_(kEndpoint)
+          : kind_(destination_kind::Endpoint)
         {
             new (&(this->impl_.endpoint_)) s_endpoint_{.collection = collection,
                 .chare = chare,
@@ -62,13 +63,13 @@ namespace cmk {
 
         inline s_callback_fn_& callback_fn(void)
         {
-            CmiAssert(this->kind_ == kCallback);
+            CmiAssert(this->kind_ == destination_kind::Callback);
             return this->impl_.callback_fn_;
         }
 
         inline s_endpoint_& endpoint(void)
         {
-            CmiAssert(this->kind_ == kEndpoint);
+            CmiAssert(this->kind_ == destination_kind::Endpoint);
             return this->impl_.endpoint_;
         }
 
@@ -81,12 +82,13 @@ namespace cmk {
         {
             switch (this->kind_)
             {
-            case kCallback:
-                return (this->impl_.callback_fn_.pe == cmk::all_pes);
-            case kEndpoint:
+            case destination_kind::Callback:
+                return (this->impl_.callback_fn_.pe == cmk::all::pes);
+            case destination_kind::Endpoint:
             {
                 auto& ep = this->impl_.endpoint_;
-                return ep.bcast || (ep.chare == chare_bcast_root_);
+                return ep.bcast ||
+                    (ep.chare == cmk::helper_::chare_bcast_root_);
             }
             default:
                 return false;
@@ -95,7 +97,7 @@ namespace cmk {
 
         operator bool(void) const
         {
-            return !(this->kind_ == kInvalid);
+            return !(this->kind_ == destination_kind::Invalid);
         }
 
         operator std::string(void) const
@@ -104,14 +106,14 @@ namespace cmk {
             ss << "destination(";
             switch (kind_)
             {
-            case kCallback:
+            case destination_kind::Callback:
             {
                 auto& cb = this->impl_.callback_fn_;
                 ss << "cb=" << cb.id << ",";
                 ss << "pe=" << cb.pe;
                 break;
             }
-            case kEndpoint:
+            case destination_kind::Endpoint:
             {
                 auto& ep = this->impl_.endpoint_;
                 ss << (std::string) ep.collection << ",";

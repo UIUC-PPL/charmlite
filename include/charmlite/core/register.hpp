@@ -1,18 +1,23 @@
-#ifndef __CMK_IMPL_HH__
-#define __CMK_IMPL_HH__
+#ifndef CHARMLITE_CORE_REGISTER_HPP
+#define CHARMLITE_CORE_REGISTER_HPP
 
-#include <charmlite/core/ep.hpp>
-#include <charmlite/core/message.impl.hpp>
+#include <charmlite/core/chare.hpp>
+#include <charmlite/core/collection.hpp>
+#include <charmlite/core/completion.hpp>
+#include <charmlite/core/message.hpp>
+#include <charmlite/core/proxy.hpp>
 
-/* registers all user data-types with the RTS
- */
+#include <charmlite/utilities/traits.hpp>
+
+#include <type_traits>
 
 namespace cmk {
+
     template <entry_fn_t Fn, bool Constructor>
     static entry_id_t register_entry_fn_(void)
     {
-        auto id = CsvAccess(entry_table_).size() + 1;
-        CsvAccess(entry_table_).emplace_back(Fn, Constructor);
+        auto id = CMK_ACCESS_SINGLETON(entry_table_).size() + 1;
+        CMK_ACCESS_SINGLETON(entry_table_).emplace_back(Fn, Constructor);
         return id;
     }
 
@@ -23,8 +28,9 @@ namespace cmk {
     template <typename T>
     static chare_kind_t register_chare_(void)
     {
-        auto id = CsvAccess(chare_table_).size() + 1;
-        CsvAccess(chare_table_).emplace_back(typeid(T).name(), sizeof(T));
+        auto id = CMK_ACCESS_SINGLETON(chare_table_).size() + 1;
+        CMK_ACCESS_SINGLETON(chare_table_)
+            .emplace_back(typeid(T).name(), sizeof(T));
         return id;
     }
 
@@ -47,8 +53,8 @@ namespace cmk {
     template <typename T, template <class> class Mapper>
     static collection_kind_t register_collection_(void)
     {
-        auto id = CsvAccess(collection_kinds_).size() + 1;
-        CsvAccess(collection_kinds_)
+        auto id = CMK_ACCESS_SINGLETON(collection_kinds_).size() + 1;
+        CMK_ACCESS_SINGLETON(collection_kinds_)
             .emplace_back(&construct_collection_<T, Mapper>);
         return id;
     }
@@ -66,17 +72,18 @@ namespace cmk {
     template <typename T>
     static message_kind_t register_message_(void)
     {
+        if (std::is_same<typename std::decay<T>::type, message>::value)
+            return 0;
+
         using properties_type = message_properties_extractor_<T>;
-        auto id = CsvAccess(message_table_).size() + 1;
-        CsvAccess(message_table_)
+        auto id = CMK_ACCESS_SINGLETON(message_table_).size() + 1;
+        CMK_ACCESS_SINGLETON(message_table_)
             .emplace_back(&message_deleter_impl_<T>, properties_type::packer(),
                 properties_type::unpacker());
         return id;
     }
 
-    template <>
-    message_kind_t message_helper_<message>::kind_ = 0;
-
+    // Initialize message helper
     template <typename T>
     message_kind_t message_helper_<T>::kind_ = register_message_<T>();
 
@@ -148,36 +155,13 @@ namespace cmk {
     template <typename Message, combiner_fn_t<Message> Fn>
     combiner_id_t combiner_helper_<Message, Fn>::id_ =
         register_function_<Message, combiner_fn_t, Fn>(
-            CsvAccess(combiner_table_));
+            CMK_ACCESS_SINGLETON(combiner_table_));
 
     template <typename Message, callback_fn_t<Message> Fn>
     callback_id_t callback_helper_<Message, Fn>::id_ =
         register_function_<Message, callback_fn_t, Fn>(
-            CsvAccess(callback_table_));
+            CMK_ACCESS_SINGLETON(callback_table_));
 
-    inline completion* system_detector_(void)
-    {
-        collection_index_t sys{.pe_ = cmk::all_pes, .id_ = 0};
-        auto& table = CpvAccess(collection_table_);
-        auto find = table.find(sys);
-        collection_base_* loc = nullptr;
-        if (find == std::end(table))
-        {
-            collection_options<int> opts(CmiNumPes());
-            auto msg = cmk::make_message<message>();
-            new (&msg->dst_) destination(
-                sys, chare_bcast_root_, constructor<completion, void>());
-            loc =
-                new collection<completion, group_mapper>(sys, opts, msg.get());
-            table.emplace(sys, loc);
-        }
-        else
-        {
-            loc = find->second.get();
-        }
-        auto idx = index_view<int>::encode(CmiMyPe());
-        return loc->template lookup<completion>(idx);
-    }
 }    // namespace cmk
 
 #endif

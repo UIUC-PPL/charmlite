@@ -1,18 +1,20 @@
-#ifndef __CMK_EP_HH__
-#define __CMK_EP_HH__
+#ifndef CHARMLITE_CORE_EP_HPP
+#define CHARMLITE_CORE_EP_HPP
+
+#include <charmlite/core/common.hpp>
 
 #include <charmlite/utilities/traits.hpp>
 
 namespace cmk {
     inline const entry_record_* record_for(entry_id_t id)
     {
-        if (id == nil_entry_)
+        if (id == cmk::helper_::nil_entry_)
         {
             return nullptr;
         }
         else
         {
-            return &(CsvAccess(entry_table_)[id - 1]);
+            return &(CMK_ACCESS_SINGLETON(entry_table_)[id - 1]);
         }
     }
 
@@ -27,7 +29,7 @@ namespace cmk {
 
     template <typename T, typename Message, member_fn_t<T, Message> Fn>
     struct entry_fn_impl_<member_fn_t<T, Message>, Fn,
-        typename std::enable_if<is_message_<Message>()>::type>
+        typename std::enable_if<is_message<Message>::value>::type>
     {
         static void call_(void* self, message_ptr<>&& msg)
         {
@@ -57,7 +59,7 @@ namespace cmk {
     template <typename A, typename Message>
     struct constructor_caller_<A, message_ptr<Message>&&>
     {
-        typename std::enable_if<is_message_<Message>()>::type operator()(
+        typename std::enable_if<is_message<Message>::value>::type operator()(
             void* self, message_ptr<>&& msg)
         {
             auto* typed = static_cast<Message*>(msg.release());
@@ -84,8 +86,6 @@ namespace cmk {
         return entry_fn_helper_<(&call_constructor_<T, Message>), true>::id_;
     }
 
-    template <typename T, template <class> class Mapper>
-    inline collection_kind_t collection_kind(void);
 }    // namespace cmk
 
 #endif

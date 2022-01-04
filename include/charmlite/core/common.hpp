@@ -1,36 +1,92 @@
-#ifndef __CMK_COMMMON_HH__
-#define __CMK_COMMMON_HH__
+#ifndef CHARMLITE_CORE_COMMMON_HPP
+#define CHARMLITE_CORE_COMMMON_HPP
 
 #include <converse.h>
 #include <execinfo.h>
 
 #include <cstdint>
-#include <deque>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <sstream>
-#include <type_traits>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
+#if CHARMLITE_TOPOLOGY
+#include "TopoManager.h"
+#include "spanningTree.h"
+
+void CmiInitCPUTopology(char** argv);
+void CmiInitMemAffinity(char** argv);
+#endif
+
 namespace cmk {
+
+    // Helper Singleton Class
+    template <typename T, typename SingletonClass>
+    class singleton
+    {
+    public:
+        using value_type = T;
+        using class_type = SingletonClass;
+
+        // Non-copyable, non-movable
+        singleton(singleton const&) = delete;
+        singleton(singleton&&) = delete;
+        singleton& operator=(singleton const&) = delete;
+        singleton& operator=(singleton&&) = delete;
+
+        static const std::unique_ptr<value_type>& instance()
+        {
+            static std::unique_ptr<value_type> inst{new value_type()};
+
+            return inst;
+        }
+
+    private:
+        singleton() = default;
+    };
+
+#define CMK_GENERATE_SINGLETON(type, name)                                     \
+    class name : public singleton<type, name>                                  \
+    {                                                                          \
+    private:                                                                   \
+        name() = default;                                                      \
+    }
+
+#define CMK_ACCESS_SINGLETON(name) (*name::instance())
 
     struct message;
 
-    struct chare_record_;
+    template <typename Message = message>
+    using message_ptr =
+        std::unique_ptr<Message>;    // , message_deleter_<Message>>;
 
-    template <typename T>
-    class element_proxy;
+    template <typename Message, typename... Args>
+    inline message_ptr<Message> make_message(Args&&... args);
 
-    class collection_options_base_;
+    // TODO ( rename to callback_fn_t )
+    template <typename Message>
+    using callback_fn_t = void (*)(message_ptr<Message>&&);
+    using callback_table_t = std::vector<callback_fn_t<message>>;
+    using callback_id_t = typename callback_table_t::size_type;
 
-    class collection_base_;
+    // TODO ( rename to combiner_fn_t )
+    template <typename Message>
+    using combiner_fn_t = message_ptr<Message> (*)(
+        message_ptr<Message>&&, message_ptr<Message>&&);
+    using combiner_table_t = std::vector<combiner_fn_t<message>>;
+    using combiner_id_t = typename combiner_table_t::size_type;
 
-    template <typename T>
-    class collection_proxy_base_;
+    // Shared between workers in a process
+    CMK_GENERATE_SINGLETON(combiner_table_t, combiner_table_);
+    CMK_GENERATE_SINGLETON(callback_table_t, callback_table_);
 
-    template <typename T>
-    struct is_packable;
+    // Each worker has its own instance of these
+    CpvExtern(std::uint32_t, local_collection_count_);
+    CpvExtern(int, converse_handler_);
+    void converse_handler_(void*);
 
     struct collection_index_t
     {
@@ -54,24 +110,6 @@ namespace cmk {
         }
     };
 
-    using collection_constructor_t =
-        collection_base_* (*) (const collection_index_t&,
-            const collection_options_base_&, const message*);
-
-    template <typename T>
-    struct message_deleter_;
-
-    template <typename Message = message>
-    using message_ptr =
-        std::unique_ptr<Message>;    // , message_deleter_<Message>>;
-
-    template <typename Message, typename... Args>
-    inline message_ptr<Message> make_message(Args&&... args)
-    {
-        auto* msg = new Message(std::forward<Args>(args)...);
-        return message_ptr<Message>(msg);
-    }
-
     struct collection_index_hasher_
     {
         static_assert(sizeof(collection_index_t) == sizeof(std::size_t),
@@ -83,6 +121,10 @@ namespace cmk {
         }
     };
 
+    template <typename T>
+    using collection_map =
+        std::unordered_map<collection_index_t, T, collection_index_hasher_>;
+
     inline void pack_message(message_ptr<>& msg);
     inline void unpack_message(message_ptr<>& msg);
 
@@ -90,7 +132,7 @@ namespace cmk {
 
     struct entry_record_
     {
-        entry_fn_t fn_;
+        const entry_fn_t fn_;
         bool is_constructor_;
 
         entry_record_(entry_fn_t fn, bool is_constructor)
@@ -115,97 +157,48 @@ namespace cmk {
         }
     };
 
-    /* general terminology :
- * - kind refers to a family of instances
- * - id/index refers to a specific instance
- */
-
-    // TODO ( rename to callback_fn_t )
-    template <typename Message>
-    using callback_fn_t = void (*)(message_ptr<Message>&&);
-    using callback_table_t = std::vector<callback_fn_t<message>>;
-    using callback_id_t = typename callback_table_t::size_type;
-
-    // TODO ( rename to combiner_fn_t )
-    template <typename Message>
-    using combiner_fn_t = message_ptr<Message> (*)(
-        message_ptr<Message>&&, message_ptr<Message>&&);
-    using combiner_table_t = std::vector<combiner_fn_t<message>>;
-    using combiner_id_t = typename combiner_table_t::size_type;
-
     using entry_table_t = std::vector<entry_record_>;
     using entry_id_t = typename entry_table_t::size_type;
 
-    using chare_table_t = std::vector<chare_record_>;
-    using chare_kind_t = typename chare_table_t::size_type;
+    enum class destination_kind : std::uint8_t
+    {
+        Invalid = 0,
+        Callback,
+        Endpoint
+    };
 
-    using collection_kinds_t = std::vector<collection_constructor_t>;
-    using collection_kind_t = typename collection_kinds_t::size_type;
+    void converse_handler_(void*);
+
+    void initialize_globals_(void);
+
+    void send(message_ptr<>&&);
+
+    inline void send(message_ptr<>&& msg, bool immediate);
 
     using chare_index_t =
         typename std::conditional<std::is_integral<CmiUInt16>::value, CmiUInt16,
             CmiUInt8>::type;
 
-    template <typename T>
-    using collection_map =
-        std::unordered_map<collection_index_t, T, collection_index_hasher_>;
-
-    using collection_table_t =
-        collection_map<std::unique_ptr<collection_base_>>;
-
-    using message_buffer_t = std::deque<message_ptr<message>>;
-    using collection_buffer_t = std::unordered_map<collection_index_t,
-        message_buffer_t, collection_index_hasher_>;
-
-    constexpr entry_id_t nil_entry_ = 0;
-    constexpr collection_kind_t nil_kind_ = 0;
-    constexpr int all_pes = -1;
-    constexpr int all_nodes = -2;
-    constexpr auto chare_bcast_root_ =
-        std::numeric_limits<chare_index_t>::max();
-
     // TODO ( rename this "collective" id type )
     using bcast_id_t = std::uint16_t;
 
-    // Shared between workers in a process
-    CsvExtern(entry_table_t, entry_table_);
-    CsvExtern(chare_table_t, chare_table_);
-    CsvExtern(callback_table_t, callback_table_);
-    CsvExtern(combiner_table_t, combiner_table_);
-    CsvExtern(collection_kinds_t, collection_kinds_);
-    // Each worker has its own instance of these
-    CpvExtern(collection_table_t, collection_table_);
-    CpvExtern(collection_buffer_t, collection_buffer_);
-    CpvExtern(std::uint32_t, local_collection_count_);
-    CpvExtern(int, converse_handler_);
+    // Shared between workers in a process (contd.)
+    CMK_GENERATE_SINGLETON(entry_table_t, entry_table_);
 
-    void initialize_globals_(void);
-
-    struct destination;
-    enum destination_kind : std::uint8_t
+    struct all
     {
-        kInvalid = 0,
-        kCallback,
-        kEndpoint
+        static constexpr int pes = -1;
+        static constexpr int nodes = -2;
     };
 
-    void converse_handler_(void*);
-
-    void send(message_ptr<>&&);
-
-    inline void send(message_ptr<>&& msg, bool immediate)
+    // TODO: Find a better name
+    struct helper_
     {
-        if (immediate)
-        {
-            converse_handler_(msg.release());
-        }
-        else
-        {
-            send(std::move(msg));
-        }
-    }
-}    // namespace cmk
+        static constexpr entry_id_t nil_entry_ = 0;
+        static constexpr chare_index_t chare_bcast_root_ =
+            std::numeric_limits<chare_index_t>::max();
+    };
 
-#include "destination.hpp"
+}    // namespace cmk
 
 #endif

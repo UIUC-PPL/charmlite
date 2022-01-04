@@ -1,15 +1,13 @@
-#ifndef __CMK_CHARE_HH__
-#define __CMK_CHARE_HH__
+#ifndef CHARMLITE_CORE_CHARE_HPP
+#define CHARMLITE_CORE_CHARE_HPP
 
+#include <charmlite/core/common.hpp>
 #include <charmlite/core/options.hpp>
 
-namespace cmk {
+#include <memory>
+#include <unordered_map>
 
-    template <typename T>
-    struct chare_kind_helper_
-    {
-        static chare_kind_t kind_;
-    };
+namespace cmk {
 
     struct chare_record_
     {
@@ -33,11 +31,23 @@ namespace cmk {
         }
     };
 
+    using chare_table_t = std::vector<chare_record_>;
+    using chare_kind_t = typename chare_table_t::size_type;
+
+    // Shared between workers in a process
+    CMK_GENERATE_SINGLETON(chare_table_t, chare_table_);
+
+    template <typename T>
+    struct chare_kind_helper_
+    {
+        static chare_kind_t kind_;
+    };
+
     template <typename T>
     const chare_record_& record_for(void)
     {
         auto id = chare_kind_helper_<T>::kind_;
-        return CsvAccess(chare_table_)[id - 1];
+        return CMK_ACCESS_SINGLETON(chare_table_)[id - 1];
     }
 
     template <typename T, typename Enable = void>

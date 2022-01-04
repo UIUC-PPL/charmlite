@@ -1,7 +1,10 @@
-#ifndef __CMK_COLLECTION_HH__
-#define __CMK_COLLECTION_HH__
+#ifndef CHARMLITE_CORE_COLLECTION_HPP
+#define CHARMLITE_CORE_COLLECTION_HPP
 
-#include <charmlite/core/collection.impl.hpp>
+#include <charmlite/core/collection_bridge.hpp>
+#include <charmlite/core/common.hpp>
+
+#include <charmlite/utilities/traits.hpp>
 
 namespace cmk {
     template <typename T, template <class> class Mapper>
@@ -149,7 +152,7 @@ namespace cmk {
         inline void deliver_now(message_ptr<>&& msg)
         {
             auto& ep = msg->dst_.endpoint();
-            if (ep.chare == chare_bcast_root_)
+            if (ep.chare == cmk::helper_::chare_bcast_root_)
             {
                 auto* root = this->root();
                 auto* obj = root ?
@@ -187,8 +190,9 @@ namespace cmk {
         inline void deliver_later(message_ptr<>&& msg)
         {
             auto& idx = msg->dst_.endpoint().chare;
-            auto pe = (idx == chare_bcast_root_) ? CmiMyPe() :
-                                                   this->locmgr_.pe_for(idx);
+            auto pe = (idx == cmk::helper_::chare_bcast_root_) ?
+                CmiMyPe() :
+                this->locmgr_.pe_for(idx);
             send_helper_(pe, std::move(msg));
         }
 

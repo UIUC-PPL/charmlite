@@ -2,7 +2,7 @@
 
 CXX=$(CHARM_HOME)/bin/charmc -language converse++
 
-OPTS?=-g3
+OPTS?=-g3 -Wall -Wextra
 INCLUDES=-I../../include
 OPTS:=$(OPTS) $(INCLUDES) -std=c++11
 FORMAT_OPTS?=-i

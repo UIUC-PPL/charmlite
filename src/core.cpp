@@ -1,24 +1,46 @@
-#include <charmlite/core/core.hpp>
-
-#include <charmlite/core/collection.hpp>
-#include <charmlite/core/proxy.hpp>
+#include <charmlite/charmlite.hpp>
 
 namespace cmk {
+
+    // Define globals
+    constexpr int all::pes;
+    constexpr int all::nodes;
+
+    constexpr entry_id_t helper_::nil_entry_;
+    constexpr chare_index_t helper_::chare_bcast_root_;
+
     // these can be nix'd when we upgrade to c++17
     constexpr int default_options<int>::start;
     constexpr int default_options<int>::step;
-
-    CsvDeclare(entry_table_t, entry_table_);
-    CsvDeclare(chare_table_t, chare_table_);
-    CsvDeclare(message_table_t, message_table_);
-    CsvDeclare(callback_table_t, callback_table_);
-    CsvDeclare(combiner_table_t, combiner_table_);
-    CsvDeclare(collection_kinds_t, collection_kinds_);
 
     CpvDeclare(collection_table_t, collection_table_);
     CpvDeclare(collection_buffer_t, collection_buffer_);
     CpvDeclare(std::uint32_t, local_collection_count_);
     CpvDeclare(int, converse_handler_);
+
+    completion* system_detector_(void)
+    {
+        collection_index_t sys{.pe_ = cmk::all::pes, .id_ = 0};
+        auto& table = CpvAccess(collection_table_);
+        auto find = table.find(sys);
+        collection_base_* loc = nullptr;
+        if (find == std::end(table))
+        {
+            collection_options<int> opts(CmiNumPes());
+            auto msg = cmk::make_message<message>();
+            new (&msg->dst_) destination(sys, cmk::helper_::chare_bcast_root_,
+                constructor<completion, void>());
+            loc =
+                new collection<completion, group_mapper>(sys, opts, msg.get());
+            table.emplace(sys, loc);
+        }
+        else
+        {
+            loc = find->second.get();
+        }
+        auto idx = index_view<int>::encode(CmiMyPe());
+        return loc->template lookup<completion>(idx);
+    }
 
     void initialize_globals_(void)
     {
@@ -69,7 +91,7 @@ namespace cmk {
     {
         if (!msg->is_broadcast())
         {
-            msg->dst_.callback_fn().pe = cmk::all_pes;
+            msg->dst_.callback_fn().pe = cmk::all::pes;
             pack_message(msg);    // XXX ( this is likely overkill )
             CmiSyncBroadcastAndFree(msg->total_size_, (char*) msg.release());
         }
@@ -85,7 +107,8 @@ namespace cmk {
         if (msg->has_collection_kind())
         {
             auto kind = (collection_kind_t) ep.entry;
-            auto& rec = CsvAccess(collection_kinds_)[kind - 1];
+            auto& rec = CMK_ACCESS_SINGLETON(collection_kinds_)[kind - 1];
+            CmiAssert(rec);
             // determine whether or not the creation message
             // is attached to an argument message
             auto* base = (char*) msg.get();
@@ -134,7 +157,7 @@ namespace cmk {
     {
 #if CMK_ERROR_CHECKING
         auto pe = msg->dst_.callback_fn().pe;
-        CmiEnforce(pe == cmk::all_pes || pe == CmiMyPe());
+        CmiEnforce(pe == cmk::all::pes || pe == CmiMyPe());
 #endif
         // prepare message for local-processing
         unpack_message(msg);
@@ -148,10 +171,10 @@ namespace cmk {
         // then determine how to route it
         switch (msg->dst_.kind())
         {
-        case kEndpoint:
+        case destination_kind::Endpoint:
             deliver_to_endpoint_(std::move(msg), true);
             break;
-        case kCallback:
+        case destination_kind::Callback:
             deliver_to_callback_(std::move(msg));
             break;
         default:
@@ -164,13 +187,13 @@ namespace cmk {
         auto& dst = msg->dst_;
         switch (dst.kind())
         {
-        case kCallback:
+        case destination_kind::Callback:
         {
             auto& cb = dst.callback_fn();
             send_helper_(cb.pe, std::move(msg));
             break;
         }
-        case kEndpoint:
+        case destination_kind::Endpoint:
             CmiAssert(!msg->has_collection_kind());
             deliver_to_endpoint_(std::move(msg), false);
             break;
