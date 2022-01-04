@@ -1,7 +1,11 @@
-#ifndef __CMK_MESSAGE_IMPL_HH__
-#define __CMK_MESSAGE_IMPL_HH__
+#ifndef CHARMLITE_UTILITIES_TRAITS_MESSAGE_HPP
+#define CHARMLITE_UTILITIES_TRAITS_MESSAGE_HPP
 
-#include "message.hpp"
+#include <charmlite/core/message.hpp>
+
+#include <type_traits>
+
+#include <deque>
 
 namespace cmk {
     template <typename T>
@@ -95,6 +99,25 @@ namespace cmk {
     {
         static constexpr auto value = message_properties_<T>::value();
     };
+
+    template <typename T, typename Message>
+    using member_fn_t = void (T::*)(cmk::message_ptr<Message>&&);
+
+    using message_buffer_t = std::deque<message_ptr<message>>;
+    using collection_buffer_t = std::unordered_map<collection_index_t,
+        message_buffer_t, collection_index_hasher_>;
+
+    template <typename T>
+    struct is_message
+      : std::conditional<std::is_base_of<message, T>::value, std::true_type,
+            std::false_type>
+    {
+        static constexpr bool value = is_message<T>::type::value;
+    };
+
+    template <typename T>
+    using is_message_t = typename is_message<T>::type;
+
 }    // namespace cmk
 
 #endif

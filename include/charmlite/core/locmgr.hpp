@@ -1,9 +1,9 @@
-#ifndef __CMK_LOCMGR_HH__
-#define __CMK_LOCMGR_HH__
+#ifndef CHARMLITE_CORE_LOCMGR_HPP
+#define CHARMLITE_CORE_LOCMGR_HPP
 
 #include <algorithm>
 
-#include "common.hpp"
+#include <charmlite/core/common.hpp>
 
 namespace cmk {
 

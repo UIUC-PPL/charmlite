@@ -2,7 +2,7 @@
 
 CXX=$(CHARM_HOME)/bin/charmc -language converse++
 
-OPTS?=-g3
+OPTS?=-g3 -Wall -Wextra
 INCLUDES=-I../../include
 OPTS:=$(OPTS) $(INCLUDES) -std=c++11
 FORMAT_OPTS?=-i
@@ -14,7 +14,7 @@ BINARY=pgm
 	$(CXX) $(OPTS) -c -o ../../libs/core.o ../../src/core.cpp
 
 format:
-	clang-format $(FORMAT_OPTS) ../../src/*.cpp ../../include/*.hpp ./$(BINARY).cpp
+	clang-format $(FORMAT_OPTS) ../../src/*.cpp ../../include/charmlite/*.hpp ../../include/charmlite/**/*.hpp ./$(BINARY).cpp
 
 clean:
 	rm -f ../../libs/core.o *.o charmrun $(BINARY)

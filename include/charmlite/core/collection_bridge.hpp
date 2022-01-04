@@ -1,9 +1,14 @@
-#ifndef __CMK_COLLECTION_IMPL_HH__
-#define __CMK_COLLECTION_IMPL_HH__
+#ifndef CHARMLITE_CORE_COLLECTION_BRIDGE_HPP
+#define CHARMLITE_CORE_COLLECTION_BRIDGE_HPP
 
-#include "completion.hpp"
-#include "locmgr.hpp"
-#include "math.hpp"
+#include <charmlite/core/chare.hpp>
+#include <charmlite/core/completion.hpp>
+#include <charmlite/core/locmgr.hpp>
+#include <charmlite/core/message.hpp>
+#include <charmlite/core/options.hpp>
+
+#include <charmlite/utilities/math.hpp>
+#include <charmlite/utilities/traits.hpp>
 
 #include <functional>
 
@@ -34,10 +39,30 @@ namespace cmk {
         }
     };
 
+    inline collection_base_* lookup(collection_index_t idx);
+
+    using collection_constructor_t =
+        collection_base_* (*) (const collection_index_t&,
+            const collection_options_base_&, const message*);
+
+    using collection_kinds_t = std::vector<collection_constructor_t>;
+    using collection_kind_t = typename collection_kinds_t::size_type;
+
+    using collection_table_t =
+        collection_map<std::unique_ptr<collection_base_>>;
+
+    using collection_buffer_t = std::unordered_map<collection_index_t,
+        message_buffer_t, collection_index_hasher_>;
+
+    // Shared between workers in a process
+    CMK_GENERATE_SINGLETON(collection_kinds_t, collection_kinds_);
+    // Each worker has its own instance of these
+    CpvExtern(collection_table_t, collection_table_);
+    CpvExtern(collection_buffer_t, collection_buffer_);
+
     // implements mapper-specific behaviors for
     // chare-collections -- i.e., listeners and spanning tree construction
-    template <typename T, template <class> class Mapper,
-        typename Enable = void>
+    template <typename T, template <class> class Mapper, typename Enable = void>
     class collection_bridge_;
 
     template <typename T, template <class> class Mapper>
@@ -81,7 +106,7 @@ namespace cmk {
                     std::transform(std::begin(child_pes), std::end(child_pes),
                         std::back_inserter(children),
                         index_view<index_type>::encode);
-                    CmiAssert(n_children == children.size());
+                    CmiAssert(n_children == static_cast<int>(children.size()));
                 }
                 auto parent = this->locmgr_.span_tree_parent(pe);
                 if (parent >= 0)
@@ -139,7 +164,7 @@ namespace cmk {
 
         collection_bridge_(const collection_index_t& id)
           : collection_base_(id)
-          , endpoint_(chare_bcast_root_)
+          , endpoint_(cmk::helper_::chare_bcast_root_)
         {
         }
 
@@ -181,7 +206,8 @@ namespace cmk {
 
         const chare_index_t* root(void) const
         {
-            if (this->is_inserting_ || (this->endpoint_ == chare_bcast_root_))
+            if (this->is_inserting_ ||
+                (this->endpoint_ == cmk::helper_::chare_bcast_root_))
             {
                 return nullptr;
             }
@@ -194,7 +220,7 @@ namespace cmk {
         callback<message> ready_callback_(void)
         {
             return callback<message>::construct<
-                &self_type::insertion_complete_>(cmk::all_pes);
+                &self_type::insertion_complete_>(cmk::all::pes);
         }
 
     private:
@@ -231,13 +257,13 @@ namespace cmk {
             element_type elt_;
 
             facade_(int pe)
-              : elt_(nullptr)
-              , pe_(pe)
+              : pe_(pe)
+              , elt_(nullptr)
             {
             }
             facade_(element_type elt)
-              : elt_(elt)
-              , pe_(cmk::all_pes)
+              : pe_(cmk::all::pes)
+              , elt_(elt)
             {
             }
         };
@@ -250,9 +276,10 @@ namespace cmk {
         {
             auto msg = cmk::make_message<Message>(std::forward<Args>(args)...);
             auto entry = cmk::entry<member_fn_t<self_type, Message>, Fn>();
-            new (&(msg->dst_)) destination(this->id_, chare_bcast_root_, entry);
+            new (&(msg->dst_))
+                destination(this->id_, cmk::helper_::chare_bcast_root_, entry);
             msg->for_collection() = true;
-            return std::move(msg);
+            return msg;
         }
 
         void produce(std::int64_t count = 1)
@@ -392,6 +419,8 @@ namespace cmk {
                 {
                     continue;
                 }
+                // TODO ( investigate whether this should be relaxed? )
+                //      ( maybe include chares without _ANY_ associatons? )
                 else if (!(ch->association_ && ch->association_->valid_parent))
                 {
                     found = ch.get();

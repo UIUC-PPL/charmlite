@@ -1,7 +1,8 @@
-#ifndef __CMK_CALLBACK_HH__
-#define __CMK_CALLBACK_HH__
+#ifndef CHARMLITE_CORE_CALLBACK_HPP
+#define CHARMLITE_CORE_CALLBACK_HPP
 
-#include "message.hpp"
+#include <charmlite/core/common.hpp>
+#include <charmlite/core/message.hpp>
 
 namespace cmk {
 
@@ -19,12 +20,12 @@ namespace cmk {
 
     inline combiner_fn_t<message> combiner_for(combiner_id_t id)
     {
-        return id ? CsvAccess(combiner_table_)[id - 1] : nullptr;
+        return id ? CMK_ACCESS_SINGLETON(combiner_table_)[id - 1] : nullptr;
     }
 
     inline callback_fn_t<message> callback_for(callback_id_t id)
     {
-        return id ? CsvAccess(callback_table_)[id - 1] : nullptr;
+        return id ? CMK_ACCESS_SINGLETON(callback_table_)[id - 1] : nullptr;
     }
 
     inline combiner_fn_t<message> combiner_for(const message_ptr<>& msg)
@@ -35,7 +36,7 @@ namespace cmk {
 
     inline callback_fn_t<message> callback_for(const message_ptr<>& msg)
     {
-        return (msg->dst_.kind() == kCallback) ?
+        return (msg->dst_.kind() == destination_kind::Callback) ?
             callback_for(msg->dst_.callback_fn().id) :
             nullptr;
     }

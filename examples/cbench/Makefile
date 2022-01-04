@@ -1,5 +1,7 @@
 include ../../common.mk
 
+OPTS:=$(OPTS) -Ofast
+
 all: pgm
 
 pgm: pgm.o ../../libs/core.o
