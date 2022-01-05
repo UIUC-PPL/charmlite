@@ -53,5 +53,7 @@ jobs:
         $CHARM_HOME/bin/charmrun ./pgm_cbench_benchmark +p2
         $CHARM_HOME/bin/charmrun ./pgm_cdt_example
         $CHARM_HOME/bin/charmrun ./pgm_cdt_example +p2
+        $CHARM_HOME/bin/charmrun ./jacobi_example 100 10
+        $CHARM_HOME/bin/charmrun ./jacobi_example +p2 100 10
         $CHARM_HOME/bin/charmrun ./pgm_pingpong_benchmark
         $CHARM_HOME/bin/charmrun ./pgm_pingpong_benchmark +p2
