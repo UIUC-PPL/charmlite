@@ -51,7 +51,7 @@ struct communicator : public cmk::chare<communicator, int>
 
 CthThread th;
 
-void resume_main(cmk::message_ptr<>&& msg)
+void resume_main(cmk::message_ptr<>&&)
 {
     CthAwaken(th);
 }

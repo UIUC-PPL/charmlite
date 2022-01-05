@@ -130,7 +130,7 @@ namespace cmk {
             return false;
         }
 
-        void set_insertion_status(bool status, std::nullptr_t) {}
+        void set_insertion_status(bool, std::nullptr_t) {}
 
         const chare_index_t* root(void) const
         {
@@ -351,7 +351,7 @@ namespace cmk {
             this->produce((std::int64_t) leaves.size() - 1);
         }
 
-        void send_downstream(const facade_& f, const chare_index_t& idx)
+        void send_downstream(const facade_&, const chare_index_t&)
         {
             // this should not occur under normal circumstances since
             // all messages _should_ have valid destinations
