@@ -91,16 +91,6 @@ struct ghost_message : public cmk::message
     }
 };
 
-struct completion_message : public cmk::plain_message<completion_message>
-{
-    bool converged;
-
-    completion_message(bool converged_) 
-        : converged(converged_)
-    {
-    }
-};
-
 struct setup_message : public cmk::plain_message<setup_message>
 {
     int array_dim_x;
@@ -127,20 +117,17 @@ struct setup_message : public cmk::plain_message<setup_message>
     }
 };
 
-template <typename T = cmk::message>
-cmk::message_ptr<T> logical_and(cmk::message_ptr<T>&& lhs, cmk::message_ptr<T>&& rhs)
-{
-    lhs->converged &= rhs->converged;
-    return std::move(lhs);
-}
-
 static_assert(cmk::is_packable<ghost_message>::value,
     "expected ghost message to be packable");
+
+void done(cmk::message_ptr<cmk::data_message<double>>&& msg);
 
 class jacobi : public cmk::chare<jacobi, index2d>
 {
     using array2d = std::vector<std::vector<double>>;
     using array1d = std::vector<double>;
+
+    using completion_message = cmk::data_message<bool>;
 
 public:
     array2d temperature;
@@ -180,8 +167,6 @@ public:
           , maxiterations(msg->maxiterations) 
     {
         this_index = this->index();
-
-        cmk::message::free(msg);
 
         temperature = array2d(block_dim_x + 2, array1d(block_dim_y + 2, 0.0));
         new_temperature = array2d(block_dim_x + 2, array1d(block_dim_y + 2, 0.0));
@@ -285,7 +270,6 @@ public:
     void receive_ghosts(cmk::message_ptr<ghost_message>&& msg)
     {
         process_ghosts(msg->direction, msg->size, (double*) msg->data);
-        cmk::message::free(msg);
         if(++received_ghosts == neighbors)
         {
             received_ghosts = 0;
@@ -351,13 +335,18 @@ public:
 
         auto cb = this_proxy.callback<completion_message, &jacobi::check_completion>();
         this->element_proxy().contribute<completion_message, 
-            logical_and<completion_message>>(std::move(msg), cb);
+            cmk::logical_and<typename completion_message::type>>(std::move(msg), cb);
     }
 
     void check_completion(cmk::message_ptr<completion_message>&& msg)
     {
-        if(iterations == maxiterations || msg->converged)
-            cmk::exit();
+        if((iterations == maxiterations || msg->value()) && this_index.x + this_index.y == 0)
+        {
+            auto end_time = CmiWallTimer();
+            auto cb = cmk::callback<cmk::data_message<double>>::construct<
+                done>(0);
+            cb.send(cmk::make_message<cmk::data_message<double>>(end_time));
+        }
         else
             begin_iteration();
     }
@@ -406,6 +395,14 @@ public:
         }
     }
 };
+
+double start_time;
+
+void done(cmk::message_ptr<cmk::data_message<double>>&& msg)
+{
+    CmiPrintf("Total execution time = %fs\n", msg->value() - start_time);
+    cmk::exit();
+}
 
 int main(int argc, char** argv)
 {
@@ -456,6 +453,8 @@ int main(int argc, char** argv)
         CmiPrintf("Block Dimensions: %d %d\n", block_dim_x, block_dim_y);
         CmiPrintf("Max iterations %d\n", maxiterations);
         CmiPrintf("Threshold %.10g\n", THRESHOLD);
+
+        start_time = CmiWallTimer();
 
         auto array = cmk::collection_proxy<jacobi>::construct();
 

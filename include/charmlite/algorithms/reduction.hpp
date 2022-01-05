@@ -26,6 +26,14 @@ namespace cmk {
         lhs->value() += rhs->value();
         return std::move(lhs);
     }
+
+    template <typename T>
+    message_ptr<data_message<T>> logical_and(
+        message_ptr<data_message<T>>&& lhs, message_ptr<data_message<T>>&& rhs)
+    {
+        lhs->value() &= rhs->value();
+        return std::move(lhs);
+    }
 }    // namespace cmk
 
 #endif
