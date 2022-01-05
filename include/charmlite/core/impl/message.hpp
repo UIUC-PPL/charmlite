@@ -134,13 +134,13 @@ namespace cmk {
         return message_ptr<T>(typed);
     }
 
-    inline void* message::operator new(std::size_t count, std::size_t sz)
+    inline void* message::operator new(std::size_t, std::size_t sz)
     {
         CmiAssert(sz >= sizeof(message));
         return CmiAlloc(sz);
     }
 
-    inline void message::operator delete(void* blk, std::size_t sz)
+    inline void message::operator delete(void* blk, std::size_t)
     {
         CmiFree(blk);
     }

@@ -44,7 +44,7 @@ namespace cmk {
             return inst;
         }
 
-    private:
+    protected:
         singleton() = default;
     };
 

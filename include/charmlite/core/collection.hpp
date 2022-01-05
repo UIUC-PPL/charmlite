@@ -101,6 +101,7 @@ namespace cmk {
         {
             auto& ep = msg->dst_.endpoint();
             auto* rec = msg->has_combiner() ? nullptr : record_for(ep.entry);
+            // NOTE ( the lifetime of this variable is tied to the message! )
             auto& idx = ep.chare;
             auto pe = this->locmgr_.pe_for(idx);
             // TODO ( temporary constraint, elements only created on home pe )
@@ -118,7 +119,7 @@ namespace cmk {
                 // notify all chare listeners
                 this->on_chare_arrival(ch, true);
                 // flush any messages we have for it
-                flush_buffers(idx);
+                flush_buffers(static_cast<chare_base_*>(ch)->index_);
             }
             else
             {

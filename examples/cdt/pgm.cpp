@@ -84,7 +84,7 @@ struct test : cmk::chare<test, int>
 
 CthThread th;
 
-void resume_main_(cmk::message_ptr<>&& msg)
+void resume_main_(cmk::message_ptr<>&&)
 {
     CthAwaken(th);
 }
