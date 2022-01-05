@@ -212,7 +212,7 @@ namespace cmk {
         {
             if (CmiNodeOf(pe) == CmiMyNode())
             {
-                CmiPushPE(pe, msg.release());
+                CmiPushPE(CmiRankOf(pe), msg.release());
             }
             else
             {
