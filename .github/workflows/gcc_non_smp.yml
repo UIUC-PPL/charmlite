@@ -25,12 +25,12 @@ jobs:
     - name: prepare-deps
       run: |
         sudo apt install -y openmpi-bin openmpi-doc libopenmpi-dev
-        git clone https://github.com/UIUC-PPL/charm.git && git checkout add_install_prefix
+        git clone https://github.com/UIUC-PPL/charm.git
 
     # Build Charm++
     - name: build-charm++
       run: |
-        cd charm
+        cd charm && git checkout add_install_prefix
         ./build AMPI-only mpi-linux-x86_64 gcc gfortran --with-production --without-romio -j2 -DCSD_NO_IDLE_TRACING=1 -DCSD_NO_PERIODIC=1
 
     # Build CharmLite
