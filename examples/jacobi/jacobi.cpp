@@ -6,8 +6,8 @@
  * https://github.com/UIUC-PPL/charm/tree/main/examples/charm%2B%2B/jacobi2d-2d-decomposition
  */
 
-#include <cstring>
 #include <charmlite/charmlite.hpp>
+#include <cstring>
 
 #define LEFT 0
 #define RIGHT 1
@@ -22,8 +22,9 @@ class index2d
 public:
     int x, y;
 
-    index2d(int x_=0, int y_=0) :
-        x(x_), y(y_)
+    index2d(int x_ = 0, int y_ = 0)
+      : x(x_)
+      , y(y_)
     {
     }
 
@@ -72,11 +73,12 @@ struct ghost_message : public cmk::message
     char* data;
 
     ghost_message(int direction_, int size_)
-        : cmk::message(cmk::message_helper_<ghost_message>::kind_,
-                sizeof(message) + 2 * sizeof(int) + sizeof(char*) + size_ * sizeof(double))
-          , direction(direction_)
-          , size(size_)
-          , data((char*) this + 2 * sizeof(int) + sizeof(char*) + sizeof(message))
+      : cmk::message(cmk::message_helper_<ghost_message>::kind_,
+            sizeof(message) + 2 * sizeof(int) + sizeof(char*) +
+                size_ * sizeof(double))
+      , direction(direction_)
+      , size(size_)
+      , data((char*) this + 2 * sizeof(int) + sizeof(char*) + sizeof(message))
     {
     }
 
@@ -102,17 +104,16 @@ struct setup_message : public cmk::plain_message<setup_message>
 
     int maxiterations;
 
-    setup_message(int array_dim_x_, int array_dim_y_, 
-            int block_dim_x_, int block_dim_y_, 
-            int num_chare_x_, int num_chare_y_,
-            int maxiterations_)
-        : array_dim_x(array_dim_x_)
-          , array_dim_y(array_dim_y_)
-          , block_dim_x(block_dim_x_)
-          , block_dim_y(block_dim_y_)
-          , num_chare_x(num_chare_x_)
-          , num_chare_y(num_chare_y_)
-          , maxiterations(maxiterations_)
+    setup_message(int array_dim_x_, int array_dim_y_, int block_dim_x_,
+        int block_dim_y_, int num_chare_x_, int num_chare_y_,
+        int maxiterations_)
+      : array_dim_x(array_dim_x_)
+      , array_dim_y(array_dim_y_)
+      , block_dim_x(block_dim_x_)
+      , block_dim_y(block_dim_y_)
+      , num_chare_x(num_chare_x_)
+      , num_chare_y(num_chare_y_)
+      , maxiterations(maxiterations_)
     {
     }
 };
@@ -152,31 +153,32 @@ public:
 
     index2d this_index;
 
-    jacobi(cmk::message_ptr<setup_message>&& msg) 
-        : iterations(0)
-          , neighbors(0)
-          , max_error(0)
-          , converged(0)
-          , received_ghosts(0)
-          , array_dim_x(msg->array_dim_x) 
-          , array_dim_y(msg->array_dim_x) 
-          , block_dim_x(msg->block_dim_x) 
-          , block_dim_y(msg->block_dim_y) 
-          , num_chare_x(msg->num_chare_x) 
-          , num_chare_y(msg->num_chare_y) 
-          , maxiterations(msg->maxiterations) 
+    jacobi(cmk::message_ptr<setup_message>&& msg)
+      : iterations(0)
+      , neighbors(0)
+      , received_ghosts(0)
+      , max_error(0)
+      , converged(0)
+      , array_dim_x(msg->array_dim_x)
+      , array_dim_y(msg->array_dim_x)
+      , block_dim_x(msg->block_dim_x)
+      , block_dim_y(msg->block_dim_y)
+      , num_chare_x(msg->num_chare_x)
+      , num_chare_y(msg->num_chare_y)
+      , maxiterations(msg->maxiterations)
     {
         this_index = this->index();
 
         temperature = array2d(block_dim_x + 2, array1d(block_dim_y + 2, 0.0));
-        new_temperature = array2d(block_dim_x + 2, array1d(block_dim_y + 2, 0.0));
+        new_temperature =
+            array2d(block_dim_x + 2, array1d(block_dim_y + 2, 0.0));
 
         left_bound = right_bound = top_bound = bottom_bound = false;
         istart = jstart = 1;
         ifinish = block_dim_x + 1;
         jfinish = block_dim_y + 1;
 
-        if(this_index.x == 0)
+        if (this_index.x == 0)
         {
             left_bound = true;
             istart++;
@@ -184,7 +186,7 @@ public:
         else
             neighbors++;
 
-        if(this_index.x == num_chare_x - 1)
+        if (this_index.x == num_chare_x - 1)
         {
             right_bound = true;
             ifinish--;
@@ -192,7 +194,7 @@ public:
         else
             neighbors++;
 
-        if(this_index.y == 0)
+        if (this_index.y == 0)
         {
             top_bound = true;
             jstart++;
@@ -200,7 +202,7 @@ public:
         else
             neighbors++;
 
-        if(this_index.y == num_chare_y - 1)
+        if (this_index.y == num_chare_y - 1)
         {
             bottom_bound = true;
             jfinish--;
@@ -213,88 +215,88 @@ public:
     }
 
     // Send ghost faces to the six neighbors
-    void begin_iteration() 
+    void begin_iteration()
     {
         iterations++;
 
         auto this_proxy = this->collection_proxy();
 
         double* ghost_data;
-        int msg_size_x = sizeof(cmk::message) + 2 * sizeof(int) + 
+        int msg_size_x = sizeof(cmk::message) + 2 * sizeof(int) +
             sizeof(char*) + block_dim_x * sizeof(double);
-        int msg_size_y = sizeof(cmk::message) + 2 * sizeof(int) + 
+        int msg_size_y = sizeof(cmk::message) + 2 * sizeof(int) +
             sizeof(char*) + block_dim_y * sizeof(double);
 
-        if(!left_bound)
+        if (!left_bound)
         {
             cmk::message_ptr<ghost_message> msg(
                 new (msg_size_y) ghost_message(RIGHT, block_dim_y));
             ghost_data = (double*) msg->data;
-            for(int j = 0; j < block_dim_y; ++j) 
-                ghost_data[j] = temperature[1][j+1];
-            this_proxy[index2d(this_index.x - 1, this_index.y)].send<
-                ghost_message, &jacobi::receive_ghosts>(std::move(msg));
+            for (int j = 0; j < block_dim_y; ++j)
+                ghost_data[j] = temperature[1][j + 1];
+            this_proxy[index2d(this_index.x - 1, this_index.y)]
+                .send<ghost_message, &jacobi::receive_ghosts>(std::move(msg));
         }
-        if(!right_bound)
+        if (!right_bound)
         {
             cmk::message_ptr<ghost_message> msg(
                 new (msg_size_y) ghost_message(LEFT, block_dim_y));
             ghost_data = (double*) msg->data;
-            for(int j = 0; j < block_dim_y; ++j) 
-                ghost_data[j] = temperature[block_dim_x][j+1];
-            this_proxy[index2d(this_index.x + 1, this_index.y)].send<
-                ghost_message, &jacobi::receive_ghosts>(std::move(msg));
+            for (int j = 0; j < block_dim_y; ++j)
+                ghost_data[j] = temperature[block_dim_x][j + 1];
+            this_proxy[index2d(this_index.x + 1, this_index.y)]
+                .send<ghost_message, &jacobi::receive_ghosts>(std::move(msg));
         }
-        if(!top_bound)
+        if (!top_bound)
         {
             cmk::message_ptr<ghost_message> msg(
                 new (msg_size_x) ghost_message(BOTTOM, block_dim_x));
             ghost_data = (double*) msg->data;
-            for(int i = 0; i < block_dim_x; ++i) 
-                ghost_data[i] = temperature[i+1][1];
-            this_proxy[index2d(this_index.x, this_index.y - 1)].send<
-                ghost_message, &jacobi::receive_ghosts>(std::move(msg));
+            for (int i = 0; i < block_dim_x; ++i)
+                ghost_data[i] = temperature[i + 1][1];
+            this_proxy[index2d(this_index.x, this_index.y - 1)]
+                .send<ghost_message, &jacobi::receive_ghosts>(std::move(msg));
         }
-        if(!bottom_bound)
+        if (!bottom_bound)
         {
             cmk::message_ptr<ghost_message> msg(
                 new (msg_size_x) ghost_message(TOP, block_dim_x));
             ghost_data = (double*) msg->data;
-            for(int i = 0; i < block_dim_x; ++i)
-                ghost_data[i] = temperature[i+1][block_dim_y];
-            this_proxy[index2d(this_index.x, this_index.y + 1)].send<
-                ghost_message, &jacobi::receive_ghosts>(std::move(msg));
+            for (int i = 0; i < block_dim_x; ++i)
+                ghost_data[i] = temperature[i + 1][block_dim_y];
+            this_proxy[index2d(this_index.x, this_index.y + 1)]
+                .send<ghost_message, &jacobi::receive_ghosts>(std::move(msg));
         }
     }
 
     void receive_ghosts(cmk::message_ptr<ghost_message>&& msg)
     {
         process_ghosts(msg->direction, msg->size, (double*) msg->data);
-        if(++received_ghosts == neighbors)
+        if (++received_ghosts == neighbors)
         {
             received_ghosts = 0;
             compute();
         }
     }
 
-    void process_ghosts(int dir, int size, double* gh) 
+    void process_ghosts(int dir, int size, double* gh)
     {
-        switch(dir) 
+        switch (dir)
         {
         case LEFT:
-            for(int j = 0; j < size; ++j) 
+            for (int j = 0; j < size; ++j)
                 temperature[0][j + 1] = gh[j];
             break;
         case RIGHT:
-            for(int j = 0; j < size; ++j) 
+            for (int j = 0; j < size; ++j)
                 temperature[block_dim_x + 1][j + 1] = gh[j];
             break;
         case TOP:
-            for(int i = 0; i < size; ++i)
+            for (int i = 0; i < size; ++i)
                 temperature[i + 1][0] = gh[i];
             break;
         case BOTTOM:
-            for(int i = 0; i < size; ++i)
+            for (int i = 0; i < size; ++i)
                 temperature[i + 1][block_dim_y + 1] = gh[i];
             break;
         default:
@@ -302,7 +304,7 @@ public:
         }
     }
 
-    void compute() 
+    void compute()
     {
         auto this_proxy = this->collection_proxy();
 
@@ -311,18 +313,21 @@ public:
 
         max_error = 0.;
         // When all neighbor values have been received, we update our values and proceed
-        for(int i = istart; i < ifinish; ++i) 
+        for (int i = istart; i < ifinish; ++i)
         {
-            for(int j = jstart; j < jfinish; ++j) 
+            for (int j = jstart; j < jfinish; ++j)
             {
-                temperature_ij = (temperature[i][j] + temperature[i-1][j] + 
-                        temperature[i+1][j] + temperature[i][j-1] + 
-                        temperature[i][j+1]) * 0.2;
+                temperature_ij =
+                    (temperature[i][j] + temperature[i - 1][j] +
+                        temperature[i + 1][j] + temperature[i][j - 1] +
+                        temperature[i][j + 1]) *
+                    0.2;
 
                 // update relative error
                 difference = temperature_ij - temperature[i][j];
                 // fix sign without fabs overhead
-                if(difference < 0) difference *= -1.0; 
+                if (difference < 0)
+                    difference *= -1.0;
                 max_error = (max_error > difference) ? max_error : difference;
                 new_temperature[i][j] = temperature_ij;
             }
@@ -333,18 +338,23 @@ public:
         bool converged = (max_error <= THRESHOLD);
         auto msg = cmk::make_message<completion_message>(converged);
 
-        auto cb = this_proxy.callback<completion_message, &jacobi::check_completion>();
-        this->element_proxy().contribute<completion_message, 
-            cmk::logical_and<typename completion_message::type>>(std::move(msg), cb);
+        auto cb =
+            this_proxy
+                .callback<completion_message, &jacobi::check_completion>();
+        this->element_proxy()
+            .contribute<completion_message,
+                cmk::logical_and<typename completion_message::type>>(
+                std::move(msg), cb);
     }
 
     void check_completion(cmk::message_ptr<completion_message>&& msg)
     {
-        if((iterations == maxiterations || msg->value()) && this_index.x + this_index.y == 0)
+        if ((iterations == maxiterations || msg->value()) &&
+            this_index.x + this_index.y == 0)
         {
             auto end_time = CmiWallTimer();
-            auto cb = cmk::callback<cmk::data_message<double>>::construct<
-                done>(0);
+            auto cb =
+                cmk::callback<cmk::data_message<double>>::construct<done>(0);
             cb.send(cmk::make_message<cmk::data_message<double>>(end_time));
         }
         else
@@ -354,29 +364,29 @@ public:
     // Enforce some boundary conditions
     void constraint_bc()
     {
-        if(top_bound)
-            for(int i = 0; i < block_dim_x + 2; ++i)
+        if (top_bound)
+            for (int i = 0; i < block_dim_x + 2; ++i)
             {
                 temperature[i][1] = 1.;
                 new_temperature[i][1] = 1.;
             }
 
-        if(left_bound)
-            for(int j = 0; j < block_dim_y + 2; ++j)
+        if (left_bound)
+            for (int j = 0; j < block_dim_y + 2; ++j)
             {
                 temperature[1][j] = 1.;
                 new_temperature[1][j] = 1.;
             }
 
-        if(bottom_bound)
-            for(int i = 0; i < block_dim_x + 2; ++i)
+        if (bottom_bound)
+            for (int i = 0; i < block_dim_x + 2; ++i)
             {
                 temperature[i][block_dim_y] = 1.;
                 new_temperature[i][block_dim_y] = 1.;
             }
 
-        if(right_bound)
-            for(int j = 0; j < block_dim_y + 2; ++j)
+        if (right_bound)
+            for (int j = 0; j < block_dim_y + 2; ++j)
             {
                 temperature[block_dim_x][j] = 1.;
                 new_temperature[block_dim_x][j] = 1.;
@@ -386,11 +396,12 @@ public:
     // for debugging
     void dump_matrix(array2d const& matrix)
     {
-        CmiPrintf("\n\n[%d,%d] iter = %i\n",this_index.x, this_index.y, iterations);
-        for(int i = 0; i < block_dim_x + 2; ++i)
+        CmiPrintf(
+            "\n\n[%d,%d] iter = %i\n", this_index.x, this_index.y, iterations);
+        for (int i = 0; i < block_dim_x + 2; ++i)
         {
-            for(int j = 0; j < block_dim_y + 2; ++j)
-                CmiPrintf("%0.3lf ",matrix[i][j]);
+            for (int j = 0; j < block_dim_y + 2; ++j)
+                CmiPrintf("%0.3lf ", matrix[i][j]);
             CmiPrintf("\n");
         }
     }
@@ -411,33 +422,37 @@ int main(int argc, char** argv)
     {
         int array_dim_x, array_dim_y, block_dim_x, block_dim_y;
 
-        if((argc < 3) || (argc > 6)) 
+        if ((argc < 3) || (argc > 6))
         {
-            CmiPrintf("%s [array_size] [block_size]\n", argv[0]);
-            CmiPrintf("OR %s [array_size] [block_size] maxiterations\n", argv[0]);
-            CmiPrintf("OR %s [array_size_X] [array_size_Y] [block_size_X] [block_size_Y] \n", argv[0]);
-            CmiPrintf("OR %s [array_size_X] [array_size_Y] [block_size_X] [block_size_Y] maxiterations\n", argv[0]);
-            CmiAbort("Abort");
+            CmiError("%s [array_size] [block_size]\n", argv[0]);
+            CmiError(
+                "OR %s [array_size] [block_size] maxiterations\n", argv[0]);
+            CmiError("OR %s [array_size_X] [array_size_Y] [block_size_X] "
+                      "[block_size_Y] \n",
+                argv[0]);
+            CmiError("OR %s [array_size_X] [array_size_Y] [block_size_X] "
+                      "[block_size_Y] maxiterations\n",
+                argv[0]);
+            CmiAbort("invalid arguments");
         }
-
-        if(argc <= 4) 
+        else if (argc <= 4)
         {
             array_dim_x = array_dim_y = atoi(argv[1]);
             block_dim_x = block_dim_y = atoi(argv[2]);
         }
-        else if (argc >= 5) 
+        else
         {
             array_dim_x = atoi(argv[1]);
             array_dim_y = atoi(argv[2]);
-            block_dim_x = atoi(argv[3]); 
-            block_dim_y = atoi(argv[4]); 
+            block_dim_x = atoi(argv[3]);
+            block_dim_y = atoi(argv[4]);
         }
-    
+
         int maxiterations = MAX_ITER;
-        if(argc == 4)
-            maxiterations = atoi(argv[3]); 
-        if(argc == 6)
-            maxiterations = atoi(argv[5]); 
+        if (argc == 4)
+            maxiterations = atoi(argv[3]);
+        if (argc == 6)
+            maxiterations = atoi(argv[5]);
 
         if (array_dim_x < block_dim_x || array_dim_x % block_dim_x != 0)
             CmiAbort("array_size_x %% block_size_x != 0!");
@@ -447,8 +462,8 @@ int main(int argc, char** argv)
         int num_chare_x = array_dim_x / block_dim_x;
         int num_chare_y = array_dim_y / block_dim_y;
 
-        CmiPrintf("Running Jacobi on %d processors with (%d, %d) chares\n", 
-                CmiNumPes(), num_chare_x, num_chare_y);
+        CmiPrintf("Running Jacobi on %d processors with (%d, %d) chares\n",
+            CmiNumPes(), num_chare_x, num_chare_y);
         CmiPrintf("Array Dimensions: %d %d\n", array_dim_x, array_dim_y);
         CmiPrintf("Block Dimensions: %d %d\n", block_dim_x, block_dim_y);
         CmiPrintf("Max iterations %d\n", maxiterations);
@@ -458,11 +473,11 @@ int main(int argc, char** argv)
 
         auto array = cmk::collection_proxy<jacobi>::construct();
 
-        for(auto i = 0; i < num_chare_x; i++)
-            for(auto j = 0; j < num_chare_y; j++)
+        for (auto i = 0; i < num_chare_x; i++)
+            for (auto j = 0; j < num_chare_y; j++)
                 array[index2d(i, j)].insert(cmk::make_message<setup_message>(
-                            array_dim_x, array_dim_y, block_dim_x, block_dim_y, 
-                            num_chare_x, num_chare_y, maxiterations));
+                    array_dim_x, array_dim_y, block_dim_x, block_dim_y,
+                    num_chare_x, num_chare_y, maxiterations));
 
         array.done_inserting();
     }

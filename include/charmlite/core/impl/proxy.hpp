@@ -146,14 +146,14 @@ namespace cmk {
     {
         collection_index_t id;
         base_type::next_index_(id);
-        auto a_msg = ([&](void) {
+        auto a_msg = ([&](void) -> message_ptr<> {
             using arg_type = pack_helper_t<Args&&...>;
             auto msg =
                 message_extractor<arg_type>::get(std::forward<Args>(args)...);
             new (&msg->dst_) destination(id, cmk::helper_::chare_bcast_root_,
                 constructor<T, arg_type>());
-            return std::move(msg);
-        }) ();
+            return msg;
+        })();
         {
             using options_type = collection_options<int>;
             auto kind = collection_kind<T, mapper_type>();
