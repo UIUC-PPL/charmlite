@@ -25,7 +25,7 @@ jobs:
     - name: prepare-deps
       run: |
         sudo apt install -y clang
-        git clone https://github.com/UIUC-PPL/charm.git
+        git clone https://github.com/UIUC-PPL/charm.git && git checkout add_install_prefix
 
     # Build Charm++
     - name: build-charm++
@@ -36,24 +36,13 @@ jobs:
     # Build CharmLite
     - name: prep-charmlite
       run: |
-        export CHARM_HOME=$GITHUB_WORKSPACE/charm
         mkdir build
         cd build
-        cmake -DCHARMLITE_ENABLE_BENCHMARKS=ON ..
+        cmake -DCHARMLITE_ENABLE_BENCHMARKS=ON -DCMAKE_PREFIX_PATH=$GITHUB_WORKSPACE/charm ..
         make -j2
 
     # Test CharmLite
     - name: test-charmlite
       run: |
-        export CHARM_HOME=$GITHUB_WORKSPACE/charm
-        cd build/bin
-        $CHARM_HOME/bin/charmrun ++local ./pgm_basic_example
-        $CHARM_HOME/bin/charmrun ++local ./pgm_basic_example +p2
-        $CHARM_HOME/bin/charmrun ++local ./pgm_cbench_benchmark
-        $CHARM_HOME/bin/charmrun ++local ./pgm_cbench_benchmark +p2
-        $CHARM_HOME/bin/charmrun ++local ./pgm_cdt_example
-        $CHARM_HOME/bin/charmrun ++local ./pgm_cdt_example +p2
-        $CHARM_HOME/bin/charmrun ++local ./jacobi_example 100 10
-        $CHARM_HOME/bin/charmrun ++local ./jacobi_example +p2 100 10
-        $CHARM_HOME/bin/charmrun ++local ./pgm_pingpong_benchmark
-        $CHARM_HOME/bin/charmrun ++local ./pgm_pingpong_benchmark +p2
+        cd build
+        ctest

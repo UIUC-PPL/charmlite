@@ -119,7 +119,7 @@ namespace cmk {
             auto* obj =
                 rec(col, *(reinterpret_cast<collection_options_base_*>(opts)),
                     reinterpret_cast<message*>(arg));
-            auto ins = tab.emplace(col, obj);
+            [[maybe_unused]] auto ins = tab.emplace(col, obj);
             CmiAssertMsg(ins.second, "insertion did not occur!");
             auto find = buf.find(col);
             // free now that we're done with the endpoint

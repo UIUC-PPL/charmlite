@@ -1,0 +1,16 @@
+get_filename_component(CharmLite_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+include(CMakeFindDependencyMacro)
+
+# We need to explicitly set this as we do not directly link to Charm in Charmlite
+set(Charm_DIR @CHARM_CMAKE_DIR@)
+
+# Find Charm installation
+find_dependency(Charm REQUIRED)
+
+set(CMAKE_CXX_COMPILER ${CHARM_CXX_COMPILER})
+set(CMAKE_CXX_FLAGS "-language converse++" CACHE STRING "Additional arguments to charmc" FORCE)
+
+set(CMAKE_CXX_STANDARD ${CHARM_CXX_STANDARD})
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+include("${CharmLite_CMAKE_DIR}/CharmLiteTargets.cmake")
