@@ -44,15 +44,6 @@ namespace cmk {
 
     void initialize_globals_(void)
     {
-        if (CmiMyRank() == 0)
-        {
-            CsvInitialize(entry_table_t, entry_table_);
-            CsvInitialize(chare_table_t, chare_table_);
-            CsvInitialize(message_table_t, message_table_);
-            CsvInitialize(callback_table_t, callback_table_);
-            CsvInitialize(combiner_table_t, combiner_table_);
-            CsvInitialize(collection_kinds_t, collection_kinds_);
-        }
         CpvInitialize(collection_table_t, collection_table_);
         CpvInitialize(collection_buffer_t, collection_buffer_);
         // collection ids start after zero
@@ -63,7 +54,7 @@ namespace cmk {
         CpvAccess(converse_handler_) = CmiRegisterHandler(converse_handler_);
     }
 
-    void start_fn_(int, char** argv)
+    void start_fn_(int, [[maybe_unused]] char** argv)
     {
         initialize_globals_();
 #if CHARMLITE_TOPOLOGY
@@ -119,7 +110,7 @@ namespace cmk {
             auto* obj =
                 rec(col, *(reinterpret_cast<collection_options_base_*>(opts)),
                     reinterpret_cast<message*>(arg));
-            auto ins = tab.emplace(col, obj);
+            [[maybe_unused]] auto ins = tab.emplace(col, obj);
             CmiAssertMsg(ins.second, "insertion did not occur!");
             auto find = buf.find(col);
             // free now that we're done with the endpoint

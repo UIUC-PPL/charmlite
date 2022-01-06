@@ -117,7 +117,7 @@ namespace cmk {
                 // set properties of the newly created chare
                 property_setter_<T>()(ch, this->id_, idx);
                 // place the chare within our element list
-                auto ins = this->chares_.emplace(idx, ch);
+                [[maybe_unused]] auto ins = this->chares_.emplace(idx, ch);
                 CmiAssertMsg(ins.second, "insertion did not occur!");
                 CmiAssertMsg(!msg->is_broadcast(), "not implemented!");
                 // call constructor on chare
