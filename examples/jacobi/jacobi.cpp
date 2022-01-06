@@ -168,6 +168,8 @@ public:
     {
         this_index = this->index();
 
+        CmiPrintf("Index (%i, %i) created on %i\n", this_index.x, this_index.y, CmiMyPe());
+
         temperature = array2d(block_dim_x + 2, array1d(block_dim_y + 2, 0.0));
         new_temperature = array2d(block_dim_x + 2, array1d(block_dim_y + 2, 0.0));
 
@@ -462,7 +464,7 @@ int main(int argc, char** argv)
             for(auto j = 0; j < num_chare_y; j++)
                 array[index2d(i, j)].insert(cmk::make_message<setup_message>(
                             array_dim_x, array_dim_y, block_dim_x, block_dim_y, 
-                            num_chare_x, num_chare_y, maxiterations));
+                            num_chare_x, num_chare_y, maxiterations), 1);
 
         array.done_inserting();
     }

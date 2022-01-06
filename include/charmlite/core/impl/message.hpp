@@ -49,6 +49,16 @@ namespace cmk {
         return this->flags_[for_collection_];
     }
 
+    inline message::flag_type message::for_location_update(void)
+    {
+        return this->flags_[for_location_update_];
+    }
+
+    inline bool message::for_location_update(void) const
+    {
+        return this->flags_[for_location_update_];
+    }
+
     inline message::flag_type message::has_continuation(void)
     {
         return this->flags_[has_continuation_];

@@ -8,14 +8,20 @@ namespace cmk {
 
     // Element Proxy member functions
     template <typename T>
-    template <typename... Args>
-    void element_proxy<T>::insert(Args&&... args) const
+    template <typename Message>
+    void element_proxy<T>::insert(message_ptr<Message>&& msg, int pe) const
     {
-        using arg_type = pack_helper_t<Args&&...>;
-        auto msg =
-            message_extractor<arg_type>::get(std::forward<Args>(args)...);
         new (&(msg->dst_))
-            destination(this->id_, this->idx_, constructor<T, arg_type>());
+            destination(this->id_, this->idx_, constructor<T, message_ptr<Message>&&>(), pe);
+        cmk::send(std::move(msg));
+    }
+
+    template <typename T>
+    void element_proxy<T>::insert(int pe) const
+    {
+        auto msg = message_extractor<void>::get();
+        new (&(msg->dst_))
+            destination(this->id_, this->idx_, constructor<T, void>(), pe);
         cmk::send(std::move(msg));
     }
 

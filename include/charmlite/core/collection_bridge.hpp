@@ -148,6 +148,9 @@ namespace cmk {
         using self_type = collection_bridge_<T, Mapper>;
         using element_type = chare_base_*;
 
+        // TODO LOCMGR maybe rename this message type?
+        using index_message = data_message<std::pair<int, chare_index_t>>;
+
     public:
         static entry_id_t receive_status(void)
         {
@@ -155,10 +158,17 @@ namespace cmk {
             return cmk::entry<receiver_type, &self_type::receive_status>();
         }
 
+        static entry_id_t receive_location_update(void)
+        {
+            using receiver_type = member_fn_t<self_type, index_message>;
+            return cmk::entry<receiver_type, &self_type::receive_location_update>();
+        }
+
     protected:
         using index_type = index_for_t<T>;
 
         std::unordered_map<chare_index_t, std::unique_ptr<T>> chares_;
+        //Mapper<index_type> locmgr_;
         locmgr<Mapper<index_type>> locmgr_;
         chare_index_t endpoint_;
 
@@ -224,6 +234,7 @@ namespace cmk {
         }
 
     private:
+
         void receive_status(message_ptr<data_message<bool>>&& msg)
         {
             if (msg->value())
@@ -268,8 +279,6 @@ namespace cmk {
             }
         };
 
-        using index_message = data_message<std::pair<int, chare_index_t>>;
-
         template <typename Message, member_fn_t<self_type, Message> Fn,
             typename... Args>
         cmk::message_ptr<Message> make_message(Args&&... args)
@@ -293,6 +302,14 @@ namespace cmk {
         void consume(void)
         {
             this->produce(-1);
+        }
+
+        void receive_location_update(cmk::message_ptr<index_message>&& msg)
+        {
+            auto& val = msg->value();
+            auto& pe = val.first;
+            auto& idx = val.second;
+            this->locmgr_.update_location(idx, pe);
         }
 
         void receive_upstream(cmk::message_ptr<index_message>&& msg)

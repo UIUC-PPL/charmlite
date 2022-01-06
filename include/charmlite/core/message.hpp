@@ -78,6 +78,7 @@ namespace cmk {
         static constexpr auto has_collection_kind_ = has_continuation_ + 1;
         static constexpr auto is_packed_ = has_collection_kind_ + 1;
         static constexpr auto for_collection_ = is_packed_ + 1;
+        static constexpr auto for_location_update_ = for_collection_ + 1;
 
     public:
         using flag_type = std::bitset<8>::reference;
@@ -106,6 +107,9 @@ namespace cmk {
 
         flag_type for_collection(void);
         bool for_collection(void) const;
+
+        flag_type for_location_update(void);
+        bool for_location_update(void) const;
 
         flag_type has_continuation(void);
         bool has_continuation(void) const;
