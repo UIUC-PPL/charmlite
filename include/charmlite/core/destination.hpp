@@ -22,7 +22,6 @@ namespace cmk {
             // reserved for collection communication
             // TODO ( so rename it as such! )
             bcast_id_t bcast;
-            int pe;
         };
 
         // TODO ( use an std::variant if we upgrade )
@@ -50,15 +49,13 @@ namespace cmk {
         }
 
         destination(const collection_index_t& collection,
-            const chare_index_t& chare, entry_id_t entry,
-            int pe = -1)
+            const chare_index_t& chare, entry_id_t entry)
           : kind_(destination_kind::Endpoint)
         {
             new (&(this->impl_.endpoint_)) s_endpoint_{.collection = collection,
                 .chare = chare,
                 .entry = entry,
-                .bcast = 0,
-                .pe = pe};
+                .bcast = 0};
         }
 
         destination(destination&& dst) = default;

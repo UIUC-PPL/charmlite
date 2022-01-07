@@ -12,8 +12,11 @@ namespace cmk {
     void element_proxy<T>::insert(message_ptr<Message>&& msg, int pe) const
     {
         new (&(msg->dst_))
-            destination(this->id_, this->idx_, constructor<T, message_ptr<Message>&&>(), pe);
-        cmk::send(std::move(msg));
+            destination(this->id_, this->idx_, constructor<T, message_ptr<Message>&&>());
+        if (pe < 0)
+            cmk::send(std::move(msg));
+        else
+            cmk::send(std::move(msg), pe);
     }
 
     template <typename T>
@@ -21,8 +24,11 @@ namespace cmk {
     {
         auto msg = message_extractor<void>::get();
         new (&(msg->dst_))
-            destination(this->id_, this->idx_, constructor<T, void>(), pe);
-        cmk::send(std::move(msg));
+            destination(this->id_, this->idx_, constructor<T, void>());
+        if (pe < 0)
+            cmk::send(std::move(msg));
+        else
+            cmk::send(std::move(msg), pe);
     }
 
     template <typename T>

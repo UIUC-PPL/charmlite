@@ -11,7 +11,7 @@ namespace cmk {
     class collection : public collection_bridge_<T, Mapper>
     {
         using parent_type = collection_bridge_<T, Mapper>;
-        using index_message = data_message<std::pair<int, chare_index_t>>;
+        using location_message = data_message<int>;
 
     public:
         using index_type = typename parent_type::index_type;
@@ -44,7 +44,7 @@ namespace cmk {
                     // NOTE ( I'm pretty sure this is no worse than what Charm )
                     //      ( does vis-a-vis CKARRAYMAP_POPULATE_INITIAL       )
                     // TODO ( that said, it should be elim'd for node/groups   )
-                    if (this->locmgr_.pe_for(view) == CmiMyPe())
+                    if (this->locmgr_.lookup(view) == CmiMyPe())
                     {
                         // message should be packed
                         auto clone = msg->clone();
@@ -103,32 +103,33 @@ namespace cmk {
             auto& ep = msg->dst_.endpoint();
             auto* rec = msg->has_combiner() ? nullptr : record_for(ep.entry);
             // NOTE ( the lifetime of this variable is tied to the message! )
-            auto& idx = ep.chare;
-            auto home_pe = this->locmgr_.pe_for(idx); // pe is the home pe
-            auto pe = ep.pe < 0 ? home_pe : ep.pe;
-            //if(home_pe != pe)
-            // TODO LOCMGR attach a pe to msg from the insert call to allow creation
-            // at a pe other than the home pe
-            // TODO LOCMGR ( temporary constraint, elements only created on home pe )
-            if (rec && rec->is_constructor_ && (pe == CmiMyPe()))
+            auto idx = ep.chare;
+            auto home_pe = this->locmgr_.home_pe(idx);
+            auto my_pe = CmiMyPe();
+            if (rec && rec->is_constructor_)
             {
-                CmiPrintf("Inserting at pe %i, home at %i, ep pe = %i\n", pe, home_pe, ep.pe);
-                auto* ch = static_cast<T*>((record_for<T>()).allocate());
-                // set properties of the newly created chare
-                property_setter_<T>()(ch, this->id_, idx);
-                // place the chare within our element list
-                [[maybe_unused]] auto ins = this->chares_.emplace(idx, ch);
-                CmiAssertMsg(ins.second, "insertion did not occur!");
-                CmiAssertMsg(!msg->is_broadcast(), "not implemented!");
-                // call constructor on chare
-                rec->invoke(ch, std::move(msg));
-                // notify all chare listeners
-                this->on_chare_arrival(ch, true);
-                // TODO LOCMGR (DONE) send a msg to home_pe to inform the idx location
-                if (pe != home_pe)
-                    send_location_update_(idx, home_pe, pe);
-                // flush any messages we have for it
-                flush_buffers(static_cast<chare_base_*>(ch)->index_);
+                if(msg->createhere_ || home_pe == my_pe)
+                {
+                    auto* ch = static_cast<T*>((record_for<T>()).allocate());
+                    // set properties of the newly created chare
+                    property_setter_<T>()(ch, this->id_, idx);
+                    // place the chare within our element list
+                    [[maybe_unused]] auto ins = this->chares_.emplace(idx, ch);
+                    CmiAssertMsg(ins.second, "insertion did not occur!");
+                    CmiAssertMsg(!msg->is_broadcast(), "not implemented!");
+                    // call constructor on chare
+                    rec->invoke(ch, std::move(msg));
+                    // notify all chare listeners
+                    this->on_chare_arrival(ch, true);
+                    if (home_pe != my_pe)
+                        this->send_location_update_(idx, home_pe, my_pe);
+                    // flush any messages we have for it
+                    flush_buffers(idx);
+                }
+                else
+                {
+                    send_helper_(home_pe, std::move(msg));
+                }
             }
             else
             {
@@ -136,14 +137,13 @@ namespace cmk {
                 // if the element isn't found locally
                 if (find == std::end(this->chares_))
                 {
-                    // and it's our chare...
-                    if (home_pe == CmiMyPe())
+                    if (home_pe == my_pe)
                     {
-                        // TODO LOCMGR (DONE) check if the idx exists in the locmgr, if it
+                        // check if the idx exists in the locmgr, if it
                         // does then forward the message to the pe where idx exists
                         // else buffer here
-                        auto loc = this->locmgr_.get_location(idx);
-                        if(loc == CmiMyPe())
+                        auto loc = this->locmgr_.lookup(idx);
+                        if(loc == my_pe)
                             return false;
                         else
                             send_helper_(loc, std::move(msg));
@@ -170,7 +170,6 @@ namespace cmk {
             auto& ep = msg->dst_.endpoint();
             if (ep.chare == cmk::helper_::chare_bcast_root_)
             {
-                CmiPrintf("Collection creation call\n");
                 auto* root = this->root();
                 auto* obj = root ?
                     static_cast<chare_base_*>(this->lookup(*root)) :
@@ -178,7 +177,7 @@ namespace cmk {
                 if (obj == nullptr)
                 {
                     // if the object is unavailable -- we have to reroute/buffer it
-                    auto pe = root ? this->locmgr_.pe_for(*root) : CmiMyPe();
+                    auto pe = root ? this->locmgr_.lookup(*root) : CmiMyPe();
                     if (pe == CmiMyPe())
                     {
                         this->collective_buffer_.emplace_back(std::move(msg));
@@ -209,8 +208,7 @@ namespace cmk {
             auto& ep = msg->dst_.endpoint();
             auto& idx = ep.chare;
             auto pe = (idx == cmk::helper_::chare_bcast_root_) ?
-                CmiMyPe() : (ep.pe < 0 ? this->locmgr_.pe_for(idx) : ep.pe);
-            // TODO LOCMGR check msg for dst pe, pe_for is the home pe
+                CmiMyPe() : this->locmgr_.lookup(idx);
             send_helper_(pe, std::move(msg));
         }
 
@@ -229,7 +227,7 @@ namespace cmk {
             if (immediate)
             {
                 // collection-bound messages are routed to us, yay!
-                if (msg->for_collection() || msg->for_location_update())
+                if (msg->for_collection())
                 {
                     auto& entry = msg->dst_.endpoint().entry;
                     auto* rec = record_for(entry);
@@ -395,27 +393,6 @@ namespace cmk {
         {
             auto& idx = msg->dst_.endpoint().chare;
             this->buffers_[idx].emplace_back(std::move(msg));
-        }
-
-        template<typename MapperType = Mapper<index_type>>
-        typename std::enable_if<
-        !(std::is_same<nodegroup_mapper<index_type>, MapperType>::value ||
-            std::is_same<group_mapper<index_type>, MapperType>::value)>::type
-        send_location_update_(const chare_index_t& idx, int home_pe, int loc)
-        {
-            auto msg = make_message<index_message>(idx, loc);
-            new (&msg->dst_) destination(this->id_, idx,
-                collection<T, Mapper>::receive_location_update());
-            msg->for_location_update() = true;
-            send_helper_(home_pe, std::move(msg));
-        }
-
-        template<typename MapperType = Mapper<index_type>>
-        typename std::enable_if<
-        (std::is_same<nodegroup_mapper<index_type>, MapperType>::value ||
-            std::is_same<group_mapper<index_type>, MapperType>::value)>::type
-        send_location_update_(const chare_index_t& idx, int home_pe, int loc)
-        {
         }
     };
 

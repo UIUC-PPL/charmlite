@@ -10,14 +10,14 @@ namespace cmk {
     template <typename Index>
     struct default_mapper
     {
-        int pe_for(const chare_index_t& idx) const
+        int home_pe(const chare_index_t& idx) const
         {
             return (idx % CmiNumPes());
         }
 
-        int get_location(const chare_index_t& idx) const
+        int lookup(const chare_index_t& idx)
         {
-            return this->pe_for(idx);
+            return home_pe(idx);
         }
 
         int num_span_tree_children(int pe)
@@ -50,7 +50,7 @@ namespace cmk {
     template <>
     struct nodegroup_mapper<int> : public default_mapper<int>
     {
-        int pe_for(const chare_index_t& idx) const
+        int home_pe(const chare_index_t& idx) const
         {
             return CmiNodeFirst(idx);
         }
@@ -81,29 +81,9 @@ namespace cmk {
         Mapper mapper_;
 
     public:
-        int pe_for(const chare_index_t& idx) const
+        int home_pe(const chare_index_t& idx) const
         {
-            return this->mapper_.pe_for(idx);
-        }
-
-        int num_span_tree_children(int node)
-        {
-            return this->mapper_.num_span_tree_children(node);
-        }
-
-        void span_tree_children(int node, int* children)
-        {
-            this->mapper_.span_tree_children(node, children);
-        }
-
-        int span_tree_parent(int node)
-        {
-            return this->mapper_.span_tree_parent(node);
-        }
-
-        int get_location(const chare_index_t& idx)
-        {
-            return this->pe_for(idx);
+            return this->mapper_.home_pe(idx);
         }
     };
 
@@ -116,12 +96,12 @@ namespace cmk {
         location_map_t locmap_; 
 
     public:
-        int get_location(const chare_index_t& idx)
+        int lookup(const chare_index_t& idx)
         {
             auto find = this->locmap_.find(idx);
             if(find == std::end(this->locmap_))
             {
-                return this->pe_for(idx);
+                return this->home_pe(idx);
             }
             else
             {

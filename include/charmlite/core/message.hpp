@@ -71,6 +71,7 @@ namespace cmk {
         std::size_t total_size_;
         destination dst_;
         aligned_reserve_t reserve_;
+        bool createhere_;
 
     private:
         static constexpr auto has_combiner_ = 0;
@@ -78,13 +79,13 @@ namespace cmk {
         static constexpr auto has_collection_kind_ = has_continuation_ + 1;
         static constexpr auto is_packed_ = has_collection_kind_ + 1;
         static constexpr auto for_collection_ = is_packed_ + 1;
-        static constexpr auto for_location_update_ = for_collection_ + 1;
 
     public:
         using flag_type = std::bitset<8>::reference;
 
         message(void)
           : kind_(0)
+          , createhere_(false)
           , total_size_(sizeof(message))
         {
             CmiSetHandler(this, CpvAccess(converse_handler_));
@@ -92,6 +93,7 @@ namespace cmk {
 
         message(message_kind_t kind, std::size_t total_size)
           : kind_(kind)
+          , createhere_(false)
           , total_size_(total_size)
         {
             // FIXME ( DRY failure )
@@ -107,9 +109,6 @@ namespace cmk {
 
         flag_type for_collection(void);
         bool for_collection(void) const;
-
-        flag_type for_location_update(void);
-        bool for_location_update(void) const;
 
         flag_type has_continuation(void);
         bool has_continuation(void) const;

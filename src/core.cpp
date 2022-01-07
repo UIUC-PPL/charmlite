@@ -192,4 +192,20 @@ namespace cmk {
             CmiAbort("invalid message destination");
         }
     }
+
+    void send(message_ptr<>&& msg, int pe)
+    {
+        // Send the msg to a specific pe
+        auto& dst = msg->dst_;
+        switch (dst.kind())
+        {
+        case destination_kind::Endpoint:
+            CmiAssert(!msg->has_collection_kind());
+            msg->createhere_ = true;
+            send_helper_(pe, std::move(msg));
+            break;
+        default:
+            CmiAbort("invalid message destination with direct send to pe call");
+        }
+    }
 }    // namespace cmk
