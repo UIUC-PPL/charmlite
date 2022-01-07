@@ -30,7 +30,7 @@ jobs:
     # Build Charm++
     - name: build-charm++
       run: |
-        cd charm && git checkout more_cmake_flags
+        cd charm
         ./build AMPI-only netlrts-linux-x86_64 clang --with-production --without-romio --enable-error-checking -j2 -DCSD_NO_IDLE_TRACING=1 -DCSD_NO_PERIODIC=1
 
     # Build CharmLite
