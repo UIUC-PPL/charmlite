@@ -201,7 +201,7 @@ namespace cmk {
         {
         case destination_kind::Endpoint:
             CmiAssert(!msg->has_collection_kind());
-            msg->createhere_ = true;
+            msg->createhere() = true;
             send_helper_(pe, std::move(msg));
             break;
         default:

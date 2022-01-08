@@ -49,6 +49,7 @@ namespace cmk {
             message_kind_t kind_;
             std::bitset<8> flags_;
             std::size_t total_size_;
+            int sender_pe_;
             destination dst_;
         };
     }    // namespace
@@ -69,9 +70,9 @@ namespace cmk {
         message_kind_t kind_;
         std::bitset<8> flags_;
         std::size_t total_size_;
+        int sender_pe_;
         destination dst_;
         aligned_reserve_t reserve_;
-        bool createhere_;
 
     private:
         static constexpr auto has_combiner_ = 0;
@@ -79,13 +80,15 @@ namespace cmk {
         static constexpr auto has_collection_kind_ = has_continuation_ + 1;
         static constexpr auto is_packed_ = has_collection_kind_ + 1;
         static constexpr auto for_collection_ = is_packed_ + 1;
+        static constexpr auto createhere_ = for_collection_ + 1;
+        static constexpr auto is_forwarded_ = createhere_ + 1;
 
     public:
         using flag_type = std::bitset<8>::reference;
 
         message(void)
           : kind_(0)
-          , createhere_(false)
+          , sender_pe_(-1)
           , total_size_(sizeof(message))
         {
             CmiSetHandler(this, CpvAccess(converse_handler_));
@@ -93,7 +96,7 @@ namespace cmk {
 
         message(message_kind_t kind, std::size_t total_size)
           : kind_(kind)
-          , createhere_(false)
+          , sender_pe_(-1)
           , total_size_(total_size)
         {
             // FIXME ( DRY failure )
@@ -109,6 +112,12 @@ namespace cmk {
 
         flag_type for_collection(void);
         bool for_collection(void) const;
+
+        flag_type createhere(void);
+        bool createhere(void) const;
+
+        flag_type is_forwarded(void);
+        bool is_forwarded(void) const;
 
         flag_type has_continuation(void);
         bool has_continuation(void) const;

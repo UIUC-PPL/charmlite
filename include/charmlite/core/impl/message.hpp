@@ -49,6 +49,26 @@ namespace cmk {
         return this->flags_[for_collection_];
     }
 
+    inline message::flag_type message::createhere(void)
+    {
+        return this->flags_[createhere_];
+    }
+
+    inline bool message::createhere(void) const
+    {
+        return this->flags_[createhere_];
+    }
+ 
+    inline message::flag_type message::is_forwarded(void)
+    {
+        return this->flags_[is_forwarded_];
+    }
+
+    inline bool message::is_forwarded(void) const
+    {
+        return this->flags_[is_forwarded_];
+    }
+ 
     inline message::flag_type message::has_continuation(void)
     {
         return this->flags_[has_continuation_];

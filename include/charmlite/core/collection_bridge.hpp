@@ -240,13 +240,13 @@ namespace cmk {
                 &self_type::insertion_complete_>(cmk::all::pes);
         }
 
-        void send_location_update_(const chare_index_t& idx, int home_pe, int loc)
+        void send_location_update_(const chare_index_t& idx, int dst_pe, int loc)
         {
             auto msg = cmk::make_message<location_message>(loc);
             new (&msg->dst_) destination(this->id_, idx,
                 collection<T, Mapper>::receive_location_update());
             msg->for_collection() = true;
-            send_helper_(home_pe, std::move(msg));
+            send_helper_(dst_pe, std::move(msg));
         }
 
     private:

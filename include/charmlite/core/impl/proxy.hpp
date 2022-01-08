@@ -11,6 +11,7 @@ namespace cmk {
     template <typename Message>
     void element_proxy<T>::insert(message_ptr<Message>&& msg, int pe) const
     {
+        CmiAssertMsg(pe < CmiNumPes(), "invalid pe value passed!");
         new (&(msg->dst_))
             destination(this->id_, this->idx_, constructor<T, message_ptr<Message>&&>());
         if (pe < 0)
@@ -22,6 +23,7 @@ namespace cmk {
     template <typename T>
     void element_proxy<T>::insert(int pe) const
     {
+        CmiAssertMsg(pe < CmiNumPes(), "invalid pe value passed!");
         auto msg = message_extractor<void>::get();
         new (&(msg->dst_))
             destination(this->id_, this->idx_, constructor<T, void>());
@@ -37,6 +39,7 @@ namespace cmk {
     {
         new (&(msg->dst_)) destination(
             this->id_, this->idx_, entry<member_fn_t<T, Message>, Fn>());
+        msg->sender_pe_ = CmiMyPe();
         cmk::send(std::move(msg));
     }
 

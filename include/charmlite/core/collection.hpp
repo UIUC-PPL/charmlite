@@ -108,7 +108,7 @@ namespace cmk {
             auto my_pe = CmiMyPe();
             if (rec && rec->is_constructor_)
             {
-                if(msg->createhere_ || home_pe == my_pe)
+                if(msg->createhere() || home_pe == my_pe)
                 {
                     auto* ch = static_cast<T*>((record_for<T>()).allocate());
                     // set properties of the newly created chare
@@ -137,26 +137,39 @@ namespace cmk {
                 // if the element isn't found locally
                 if (find == std::end(this->chares_))
                 {
-                    if (home_pe == my_pe)
+                    auto loc = this->locmgr_.lookup(idx);
+                    // this pe has no idea where idx is,
+                    // since it is the home pe, buffer here
+                    if (home_pe == my_pe && loc == home_pe)
+                        return false;
+                    // this pe has the location of idx from either the locmap
+                    // or the routing cache, 
+                    // forward the message to that location
+                    else if (loc != home_pe)
                     {
-                        // check if the idx exists in the locmgr, if it
-                        // does then forward the message to the pe where idx exists
-                        // else buffer here
-                        auto loc = this->locmgr_.lookup(idx);
-                        if(loc == my_pe)
-                            return false;
-                        else
-                            send_helper_(loc, std::move(msg));
+                        if (msg->sender_pe_ != my_pe)
+                            msg->is_forwarded() = true;
+                        send_helper_(loc, std::move(msg));
                     }
+                    // this pe has no idea of the location
+                    // and it is not the home pe, forward message to
+                    // home pe
+                    // XXX ( update bcast? prolly not. )
                     else
                     {
-                        // otherwise route to the home pe
-                        // XXX ( update bcast? prolly not. )
+                        if (msg->sender_pe_ != my_pe)
+                            msg->is_forwarded() = true;
                         send_helper_(home_pe, std::move(msg));
                     }
                 }
                 else
                 {
+                    // idx was found on non home pe and sender was not
+                    // the home pe and msg was forwarded at least once
+                    // send a routing update message to sender pe to
+                    // update the routing cache
+                    if(home_pe != my_pe && msg->sender_pe_ != home_pe && msg->is_forwarded())
+                        this->send_location_update_(idx, msg->sender_pe_, my_pe);
                     // otherwise, invoke the EP on the chare
                     handle_(rec, (find->second).get(), std::move(msg));
                 }
