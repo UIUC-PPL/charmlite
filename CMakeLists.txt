@@ -34,6 +34,10 @@ message(STATUS "Switching to Charm CXX Compiler: ${CHARM_ROOT}/bin/charmc")
 set(CMAKE_CXX_COMPILER ${CHARM_CXX_COMPILER})
 set(CMAKE_CXX_FLAGS "-language converse++ -Wall -Wextra" CACHE STRING "Additional arguments to charmc" FORCE)
 
+if(${CHARM_WITH_SMP})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCHARMLITE_TOPOLOGY=1")
+endif()
+
 # Charmlite requires a conforming C++11 compiler
 set(CMAKE_CXX_STANDARD ${CHARM_CXX_STANDARD})
 set(CMAKE_CXX_STANDARD_REQUIRED True)
