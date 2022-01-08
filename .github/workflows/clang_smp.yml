@@ -45,4 +45,4 @@ jobs:
     - name: test-charmlite
       run: |
         cd build
-        ctest --verbose --timeout 60
+        ctest --verbose --timeout 120
