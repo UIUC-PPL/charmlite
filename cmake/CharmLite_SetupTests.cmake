@@ -17,15 +17,18 @@ set(CHARMLITE_PARALLEL_TEST_FLAGS "+p${CHARMLITE_BENCHMARK_PE}")
 set(CHARMRUN_LOCAL_FLAGS)
 if(${CHARM_WITH_NETWORK} STREQUAL "netlrts")
     set(CHARMRUN_LOCAL_FLAGS "++local")
+    set(CHARMRUN_PPN_FLAG "++ppn")
+else()
+    set(CHARMRUN_PPN_FLAG "+ppn")
 endif()
 
 if(${CHARM_WITH_SMP})
     set(CHARMLITE_TEST_FLAGS
         ${CHARMLITE_TEST_FLAGS}
-        "+ppn1")
+        "${CHARMRUN_PPN_FLAG}1")
     set(CHARMLITE_PARALLEL_TEST_FLAGS
         ${CHARMLITE_PARALLEL_TEST_FLAGS}
-        "+ppn${CHARMLITE_BENCHMARK_PPN}"
+        "${CHARMRUN_PPN_FLAG}${CHARMLITE_BENCHMARK_PPN}"
         "+CmiSleepOnIdle")
 endif()
 
