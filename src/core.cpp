@@ -18,7 +18,7 @@ namespace cmk {
     CpvDeclare(std::uint32_t, local_collection_count_);
     CpvDeclare(int, converse_handler_);
 
-    completion* system_detector_(void)
+    static collection_base_* system_detector_collection_(void)
     {
         collection_index_t sys{.pe_ = cmk::all::pes, .id_ = 0};
         auto& table = CpvAccess(collection_table_);
@@ -38,6 +38,12 @@ namespace cmk {
         {
             loc = find->second.get();
         }
+        return loc;
+    }
+
+    completion* system_detector_(void)
+    {
+        auto* loc = system_detector_collection_();
         auto idx = index_view<int>::encode(CmiMyPe());
         return loc->template lookup<completion>(idx);
     }
@@ -135,7 +141,17 @@ namespace cmk {
             auto search = tab.find(col);
             if (search == std::end(tab))
             {
-                buf[col].emplace_back(std::move(msg));
+                if (col.pe_ == cmk::all::pes)
+                {
+                    // immediately deliver to the system detector
+                    // (this will create it since it doesn't exist?)
+                    system_detector_collection_()->deliver(
+                        std::move(msg), true);
+                }
+                else
+                {
+                    buf[col].emplace_back(std::move(msg));
+                }
             }
             else
             {
