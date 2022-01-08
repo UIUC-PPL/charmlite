@@ -1,5 +1,9 @@
 #include <charmlite/charmlite.hpp>
 
+#if CMK_SMP
+extern std::atomic<int> _cleanUp;
+#endif
+
 namespace cmk {
 
     // Define globals
@@ -95,6 +99,7 @@ namespace cmk {
         else
         {
             CsdScheduleForever();
+            ConverseExit();
         }
     }
 
@@ -102,6 +107,12 @@ namespace cmk {
     // circulate it if not received via broadcast
     void exit(message_ptr<>&& msg)
     {
+#if CMK_SMP
+        if (CmiMyRank())
+        {
+            _cleanUp = 1;
+        }
+#endif
         if (!msg->is_broadcast())
         {
             msg->dst_.callback_fn().pe = cmk::all::pes;
