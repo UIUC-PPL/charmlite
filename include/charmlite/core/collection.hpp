@@ -176,7 +176,7 @@ namespace cmk {
                 {
                     // otherwise, we increment the broadcast count and go!
                     ep.chare = *root;
-                    ep.bcast = obj->last_bcast_ + 1;
+                    ep.bcast = next_bcast_(obj->last_bcast_);
                     handle_(record_for(ep.entry), static_cast<T*>(obj),
                         std::move(msg));
                 }
@@ -236,7 +236,7 @@ namespace cmk {
             auto* obj = static_cast<chare_base_*>(this->lookup(idx));
             CmiAssert(msg->has_combiner());
             // stamp the message with a sequence number
-            ep.bcast = ++(obj->last_redn_);
+            ep.bcast = next_bcast_(obj->last_redn_);
             this->handle_reduction_message_(obj, std::move(msg));
         }
 
@@ -302,10 +302,11 @@ namespace cmk {
             auto* base = static_cast<chare_base_*>(obj);
             auto& idx = base->index_;
             auto& bcast = msg->dst_.endpoint().bcast;
+            auto next = next_bcast_(base->last_bcast_);
             // broadcasts are processed in-order
-            if (bcast == (base->last_bcast_ + 1))
+            if (bcast == next)
             {
-                base->last_bcast_++;
+                base->last_bcast_ = next;
                 CmiAssert(obj->association_);
                 const auto& children = obj->association_->children;
                 // ensure message is packed so we can safely clone it
@@ -378,6 +379,19 @@ namespace cmk {
         {
             auto& idx = msg->dst_.endpoint().chare;
             this->buffers_[idx].emplace_back(std::move(msg));
+        }
+
+        static bcast_id_t next_bcast_(bcast_id_t bcast)
+        {
+            constexpr auto max_bcast = std::numeric_limits<bcast_id_t>::max();
+            if (bcast == max_bcast)
+            {
+                return 1;
+            }
+            else
+            {
+                return bcast + 1;
+            }
         }
     };
 
