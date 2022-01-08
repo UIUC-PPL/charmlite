@@ -1,5 +1,9 @@
 #include <charmlite/charmlite.hpp>
 
+#if CMK_SMP
+extern std::atomic<int> _cleanUp;
+#endif
+
 namespace cmk {
 
     // Define globals
@@ -18,6 +22,25 @@ namespace cmk {
     CpvDeclare(std::uint32_t, local_collection_count_);
     CpvDeclare(int, converse_handler_);
 
+    static void flush_collection_buffer_(
+        collection_index_t& col, collection_base_* obj, bool immediate)
+    {
+        auto& buffers = CpvAccess(collection_buffer_);
+        auto search = buffers.find(col);
+        // check whether there are buffered messages...
+        if (search != std::end(buffers))
+        {
+            auto& buffer = search->second;
+            while (!buffer.empty())
+            {
+                obj->deliver(std::move(buffer.front()), immediate);
+                buffer.pop_front();
+            }
+            // remove the now-empty buffer
+            buffers.erase(search);
+        }
+    }
+
     completion* system_detector_(void)
     {
         collection_index_t sys{.pe_ = cmk::all::pes, .id_ = 0};
@@ -33,6 +56,9 @@ namespace cmk {
             loc =
                 new collection<completion, group_mapper>(sys, opts, msg.get());
             table.emplace(sys, loc);
+            // lazily flush any messages that arrived for the system detector
+            // before it was created
+            flush_collection_buffer_(sys, loc, false);
         }
         else
         {
@@ -73,6 +99,7 @@ namespace cmk {
         else
         {
             CsdScheduleForever();
+            ConverseExit();
         }
     }
 
@@ -80,6 +107,12 @@ namespace cmk {
     // circulate it if not received via broadcast
     void exit(message_ptr<>&& msg)
     {
+#if CMK_SMP
+        if (CmiMyRank())
+        {
+            _cleanUp = 1;
+        }
+#endif
         if (!msg->is_broadcast())
         {
             msg->dst_.callback_fn().pe = cmk::all::pes;
@@ -92,7 +125,6 @@ namespace cmk {
     inline void deliver_to_endpoint_(message_ptr<>&& msg, bool immediate)
     {
         auto& ep = msg->dst_.endpoint();
-        auto& buf = CpvAccess(collection_buffer_);
         auto& tab = CpvAccess(collection_table_);
         auto& col = ep.collection;
         if (msg->has_collection_kind())
@@ -112,29 +144,17 @@ namespace cmk {
                     reinterpret_cast<message*>(arg));
             [[maybe_unused]] auto ins = tab.emplace(col, obj);
             CmiAssertMsg(ins.second, "insertion did not occur!");
-            auto find = buf.find(col);
+            // deliver any messages buffered for the collection
+            flush_collection_buffer_(col, obj, immediate);
             // free now that we're done with the endpoint
             message::free(msg);
-            // check whether there are buffered messages...
-            if (find == std::end(buf))
-            {
-                return;
-            }
-            else
-            {
-                auto& buffer = find->second;
-                while (!buffer.empty())
-                {
-                    obj->deliver(std::move(buffer.front()), immediate);
-                    buffer.pop_front();
-                }
-            }
         }
         else
         {
             auto search = tab.find(col);
             if (search == std::end(tab))
             {
+                auto& buf = CpvAccess(collection_buffer_);
                 buf[col].emplace_back(std::move(msg));
             }
             else

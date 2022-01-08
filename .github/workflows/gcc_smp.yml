@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: Non-SMP (Clang, EC'ing)
+name: SMP (GCC+MPI)
 
 # Controls when the action will run. Triggers the workflow on push or pull request
 # events but only for the main branch
@@ -24,14 +24,14 @@ jobs:
 
     - name: prepare-deps
       run: |
-        sudo apt install -y clang
+        sudo apt install -y openmpi-bin openmpi-doc libopenmpi-dev
         git clone https://github.com/UIUC-PPL/charm.git
 
     # Build Charm++
     - name: build-charm++
       run: |
         cd charm
-        ./build AMPI-only netlrts-linux-x86_64 clang --with-production --without-romio --enable-error-checking -j2 -DCSD_NO_IDLE_TRACING=1 -DCSD_NO_PERIODIC=1
+        ./build AMPI-only mpi-linux-x86_64 smp gcc gfortran --with-production --without-romio -j2 -DCSD_NO_IDLE_TRACING=1 -DCSD_NO_PERIODIC=1
 
     # Build CharmLite
     - name: prep-charmlite
@@ -45,4 +45,4 @@ jobs:
     - name: test-charmlite
       run: |
         cd build
-        ctest --verbose --timeout 5
+        ctest --verbose --timeout 120

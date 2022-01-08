@@ -106,8 +106,8 @@ int main(int argc, char** argv)
         // create a collection
         auto grp = cmk::group_proxy<pingpong>::construct();
         // get the runtime parameters
-        std::size_t sz = (argc >= 2 && argv) ? atoll(argv[1]) : 4096;
-        std::size_t nIts = (argc >= 3 && argv) ? atoll(argv[2]) : 128;
+        std::size_t sz = (argc >= 2) ? atoll(argv[1]) : 4096;
+        std::size_t nIts = (argc >= 3) ? atoll(argv[2]) : 128;
         CmiPrintf(
             "main> pingpong with %luB payload and %lu iterations\n", sz, nIts);
         // allocate the launch pack

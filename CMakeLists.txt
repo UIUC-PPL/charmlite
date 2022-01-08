@@ -26,23 +26,23 @@ if(NOT CMAKE_BUILD_TYPE)
         FORCE)
 endif()
 
-# Replace this with find module system
-set(CHARMC_PATH $ENV{CHARM_HOME})
-if(CHARMC_PATH)
-    message(STATUS "Charm compiler found at: ${CHARMC_PATH}")
-else(CHARMC_PATH)
-    message(FATAL_ERROR "Charm compiler not found, please update the environment variable CHARM_HOME to the right location.")
-endif(CHARMC_PATH)
+# Charmlite depends on a valid Charm installation
+find_package(Charm REQUIRED)
+message(STATUS "Found Charm++ at ${CHARM_ROOT}")
+message(STATUS "Switching to Charm CXX Compiler: ${CHARM_ROOT}/bin/charmc")
 
-set(CMAKE_CXX_COMPILER "${CHARMC_PATH}/bin/charmc")
+set(CMAKE_CXX_COMPILER ${CHARM_CXX_COMPILER})
 set(CMAKE_CXX_FLAGS "-language converse++ -Wall -Wextra" CACHE STRING "Additional arguments to charmc" FORCE)
 
 # Charmlite requires a conforming C++11 compiler
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD ${CHARM_CXX_STANDARD})
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Add cmake to module path
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+
+# Include the testing framework
+include(CharmLite_SetupTests)
 
 # Generate libcharmlite.a
 add_subdirectory(src)
@@ -57,50 +57,50 @@ endif()
 # Set-up tests
 option(CHARMLITE_ENABLE_TESTS "Enable Testing Framework" OFF)
 if(CHARMLITE_ENABLE_TESTS)
-    enable_testing()
     add_subdirectory(tests)
 endif()
 
-# Benchmark related Flags
-set(CHARMLITE_BENCHMARK_PE 2 CACHE STRING "Commandline PE argument to Benchmarks")
-
-# Set-up benchmarks
-option(CHARMLITE_ENABLE_BENCHMARKS "Enable Benchmarking Framework" OFF)
 if(CHARMLITE_ENABLE_BENCHMARKS)
-    enable_testing()
     add_subdirectory(benchmarks)
 endif()
 
-# Setup Installs
+# Configure cmake configs
+configure_file(
+    ${CMAKE_SOURCE_DIR}/cmake/templates/CharmLiteConfig.cmake.in
+    "${CMAKE_BINARY_DIR}/lib/cmake/CharmLite/CharmLiteConfig.cmake"
+    ESCAPE_QUOTES
+    @ONLY)
 
+# Setup Installs
+include(GNUInstallDirs)
 # Install charmlite library
 install(
     TARGETS charmlite
     EXPORT CharmLite
-    RUNTIME DESTINATION bin
-    ARCHIVE DESTINATION lib)
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 # Install cmake targets to be used by CharmLiteConfig.cmake
 install(
     EXPORT CharmLite
     FILE CharmLiteTargets.cmake
     NAMESPACE CharmLite::
-    DESTINATION lib/cmake/CharmLite)
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/CharmLite)
 
 # Install header files
 install(
     DIRECTORY include/
-    DESTINATION include
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING PATTERN "*.hpp")
 
 # Install config file
 install(
-    FILES cmake/CharmLiteConfig.cmake
-    DESTINATION lib/cmake/CharmLite
+    FILES ${CMAKE_BINARY_DIR}/lib/cmake/CharmLite/CharmLiteConfig.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/CharmLite
 )
 
 # Install charmrun
 install(
-    PROGRAMS ${CHARMC_PATH}/bin/charmrun
+    PROGRAMS ${CHARM_ROOT}/bin/charmrun
     DESTINATION bin
 )

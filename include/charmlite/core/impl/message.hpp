@@ -9,7 +9,8 @@ namespace cmk {
     {
         if (this->has_combiner())
         {
-            return reinterpret_cast<combiner_id_t*>(this->dst_.offset_());
+            auto& ep = this->dst_.endpoint();
+            return reinterpret_cast<combiner_id_t*>(&(ep.entry));
         }
         else
         {

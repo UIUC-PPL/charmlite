@@ -8,6 +8,11 @@
 #include <charmlite/utilities/math.hpp>
 #include <charmlite/utilities/traits.hpp>
 
+#if CMK_SMP
+extern int userDrivenMode;
+extern int CharmLibInterOperate;
+#endif
+
 namespace cmk {
 
     template <typename Message, typename... Args>
@@ -33,9 +38,15 @@ namespace cmk {
         }
     }
 
-    inline void initialize(int argc, char** argv)
+    inline void initialize(int& argc, char** argv)
     {
+#if CMK_SMP
+        userDrivenMode = CharmLibInterOperate = true;
+#endif
         ConverseInit(argc, argv, start_fn_, 1, 1);
+        // update the argument counts since
+        // converse will reorder them
+        argc = CmiGetArgc(argv);
         initialize_globals_();
 #if CHARMLITE_TOPOLOGY
         TopoManager_init();
