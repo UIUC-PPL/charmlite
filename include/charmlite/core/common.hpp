@@ -179,8 +179,7 @@ namespace cmk {
         typename std::conditional<std::is_integral<CmiUInt16>::value, CmiUInt16,
             CmiUInt8>::type;
 
-    // TODO ( rename this "collective" id type )
-    using bcast_id_t = std::uint16_t;
+    using collective_id_t = std::uint16_t;
 
     // Shared between workers in a process (contd.)
     CMK_GENERATE_SINGLETON(entry_table_t, entry_table_);

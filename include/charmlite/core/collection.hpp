@@ -176,7 +176,7 @@ namespace cmk {
                 {
                     // otherwise, we increment the broadcast count and go!
                     ep.chare = *root;
-                    ep.bcast = obj->last_bcast_ + 1;
+                    ep.collective = next_collective_(obj->last_bcast_);
                     handle_(record_for(ep.entry), static_cast<T*>(obj),
                         std::move(msg));
                 }
@@ -236,7 +236,7 @@ namespace cmk {
             auto* obj = static_cast<chare_base_*>(this->lookup(idx));
             CmiAssert(msg->has_combiner());
             // stamp the message with a sequence number
-            ep.bcast = ++(obj->last_redn_);
+            ep.collective = next_collective_(obj->last_redn_);
             this->handle_reduction_message_(obj, std::move(msg));
         }
 
@@ -247,7 +247,7 @@ namespace cmk {
         void handle_reduction_message_(chare_base_* obj, message_ptr<>&& msg)
         {
             auto& ep = msg->dst_.endpoint();
-            auto& redn = ep.bcast;
+            auto& redn = ep.collective;
             auto& reducers = obj->reducers_;
             auto search = this->get_reducer_(obj, redn);
             if (search == std::end(reducers))
@@ -301,11 +301,12 @@ namespace cmk {
         {
             auto* base = static_cast<chare_base_*>(obj);
             auto& idx = base->index_;
-            auto& bcast = msg->dst_.endpoint().bcast;
+            auto& bcast = msg->dst_.endpoint().collective;
+            auto next = next_collective_(base->last_bcast_);
             // broadcasts are processed in-order
-            if (bcast == (base->last_bcast_ + 1))
+            if (bcast == next)
             {
-                base->last_bcast_++;
+                base->last_bcast_ = next;
                 CmiAssert(obj->association_);
                 const auto& children = obj->association_->children;
                 // ensure message is packed so we can safely clone it
@@ -330,7 +331,7 @@ namespace cmk {
         }
 
         // get a chare's reducer, creating one if it doesn't already exist
-        reducer_iterator_t get_reducer_(chare_base_* obj, bcast_id_t redn)
+        reducer_iterator_t get_reducer_(chare_base_* obj, collective_id_t redn)
         {
             // relationships are in flux during static insertion phases
             // so we should not create a new reducer!
@@ -378,6 +379,20 @@ namespace cmk {
         {
             auto& idx = msg->dst_.endpoint().chare;
             this->buffers_[idx].emplace_back(std::move(msg));
+        }
+
+        static collective_id_t next_collective_(collective_id_t bcast)
+        {
+            constexpr auto max_bcast =
+                std::numeric_limits<collective_id_t>::max();
+            if (bcast == max_bcast)
+            {
+                return 1;
+            }
+            else
+            {
+                return bcast + 1;
+            }
         }
     };
 
