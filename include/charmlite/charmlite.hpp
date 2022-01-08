@@ -33,9 +33,12 @@ namespace cmk {
         }
     }
 
-    inline void initialize(int argc, char** argv)
+    inline void initialize(int& argc, char** argv)
     {
         ConverseInit(argc, argv, start_fn_, 1, 1);
+        // update the argument counts since
+        // converse will reorder them
+        argc = CmiGetArgc(argv);
         initialize_globals_();
 #if CHARMLITE_TOPOLOGY
         TopoManager_init();
