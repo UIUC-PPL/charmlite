@@ -19,7 +19,7 @@ if(${CHARM_WITH_NETWORK} STREQUAL "netlrts")
     set(CHARMRUN_LOCAL_FLAGS "++local")
     set(CHARMRUN_PPN_FLAG "+ppn")
 else()
-    set(CHARMRUN_PPN_FLAG "++ppn")
+    set(CHARMRUN_PPN_FLAG "+setcpuaffinity ++ppn")
 endif()
 
 if(${CHARM_WITH_SMP})
