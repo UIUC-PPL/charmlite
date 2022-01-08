@@ -25,8 +25,7 @@ if(${CHARM_WITH_SMP})
         "+ppn1")
     set(CHARMLITE_PARALLEL_TEST_FLAGS
         ${CHARMLITE_PARALLEL_TEST_FLAGS}
-        "+ppn${CHARMLITE_BENCHMARK_PPN}"
-        "+CmiSleepOnIdle")
+        "+ppn${CHARMLITE_BENCHMARK_PPN}")
 endif()
 
 # Utility function to set up the same test with different arguments
