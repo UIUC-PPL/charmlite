@@ -110,10 +110,10 @@ namespace cmk {
     private:
         collection_index_t parent_;
         chare_index_t index_;
-        bcast_id_t last_redn_ = 0;
-        bcast_id_t last_bcast_ = 0;
+        collective_id_t last_redn_ = 0;
+        collective_id_t last_bcast_ = 0;
 
-        using reducer_map_t = std::unordered_map<bcast_id_t, reducer_>;
+        using reducer_map_t = std::unordered_map<collective_id_t, reducer_>;
         reducer_map_t reducers_;
 
         std::unique_ptr<cmk::association_> association_;

@@ -19,9 +19,7 @@ namespace cmk {
             collection_index_t collection;
             chare_index_t chare;
             entry_id_t entry;
-            // reserved for collection communication
-            // TODO ( so rename it as such! )
-            bcast_id_t bcast;
+            collective_id_t collective;
         };
 
         // TODO ( use an std::variant if we upgrade )
@@ -55,7 +53,7 @@ namespace cmk {
             new (&(this->impl_.endpoint_)) s_endpoint_{.collection = collection,
                 .chare = chare,
                 .entry = entry,
-                .bcast = 0};
+                .collective = 0};
         }
 
         destination(destination&& dst) = default;
@@ -87,7 +85,7 @@ namespace cmk {
             case destination_kind::Endpoint:
             {
                 auto& ep = this->impl_.endpoint_;
-                return ep.bcast ||
+                return ep.collective ||
                     (ep.chare == cmk::helper_::chare_bcast_root_);
             }
             default:
@@ -127,14 +125,6 @@ namespace cmk {
             }
             ss << ")";
             return ss.str();
-        }
-
-    private:
-        // message uses this to store data inside the union
-        // when it only needs the collection id!
-        inline void* offset_(void)
-        {
-            return &(this->impl_.endpoint_.entry);
         }
     };
 }    // namespace cmk
