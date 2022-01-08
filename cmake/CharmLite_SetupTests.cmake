@@ -22,10 +22,10 @@ endif()
 if(${CHARM_WITH_SMP})
     set(CHARMLITE_TEST_FLAGS
         ${CHARMLITE_TEST_FLAGS}
-        "++ppn 1")
+        "+ppn1")
     set(CHARMLITE_PARALLEL_TEST_FLAGS
         ${CHARMLITE_PARALLEL_TEST_FLAGS}
-        "++ppn ${CHARMLITE_BENCHMARK_PPN}"
+        "+ppn${CHARMLITE_BENCHMARK_PPN}"
         "+CmiSleepOnIdle")
 endif()
 
