@@ -30,10 +30,6 @@ struct future : public future_base_
     }
 };
 
-struct future_manager_;
-
-CpvDeclare(future_manager_, man_);
-
 struct future_manager_
 {
     using value_type = cmk::message_ptr<cmk::message>;
@@ -82,11 +78,13 @@ struct future_manager_
     }
 
 private:
+    static future_manager_* local_branch_(void);
+
     static void receive_(cmk::message_ptr<>&& msg)
     {
         auto* dst = &(msg->dst_);
         auto* g = reinterpret_cast<future_base_*>(dst->extra());
-        CpvAccess(man_).put(*g, std::move(msg));
+        local_branch_()->put(*g, std::move(msg));
     }
 
     void fire_(
@@ -112,6 +110,12 @@ private:
     std::map<future_base_, future_base_> chained_;
     std::map<future_base_, action_type> waiting_;
 };
+
+CpvDeclare(future_manager_, man_);
+
+future_manager_* future_manager_::local_branch_(void) {
+    return &(CpvAccess(man_));
+}
 
 template <typename T, typename Rval>
 struct fn_ptr_
@@ -198,7 +202,7 @@ future<void> schedule(scheduler&)
     }
 
     auto& man = CpvAccess(man_);
-    auto f = man.issue<void>();
+    auto f = man.template issue<void>();
     man.put(f, cmk::make_message<cmk::message>());
     return f;
 }
@@ -207,7 +211,7 @@ template <typename T, typename Rval>
 future<Rval> then(const future<T>& f, const action<T, Rval>& action)
 {
     auto& man = CpvAccess(man_);
-    auto g = man.issue<Rval>();
+    auto g = man.template issue<Rval>();
     man.chain(f, g);
     man.get(f, action.cb_);
     return g;
