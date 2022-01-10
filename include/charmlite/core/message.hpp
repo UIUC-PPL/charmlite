@@ -182,6 +182,17 @@ namespace cmk {
         }
     };
 
+    template<>
+    struct data_message<void> : public plain_message<data_message<void>>
+    {
+        using type = void;
+
+    public:
+        data_message(void) = default;
+
+        void value(void) const {}
+    };
+
     // utility function to pick optimal send mechanism
     inline void send_helper_(int pe, message_ptr<>&& msg);
 

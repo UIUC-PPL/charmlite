@@ -59,6 +59,21 @@ namespace cmk {
         destination(destination&& dst) = default;
         destination(const destination& dst) = default;
 
+        /* this function is reserved for internal use
+         * and should NOT be used in user-code
+         *
+         * ( it shouldn't even be here, really! )
+         */
+        inline char* extra(void)
+        {
+            CmiAssert(this->kind_ == destination_kind::Callback);
+            auto* xtra = (char*) &(this->impl_.endpoint_.entry);
+            CmiAssert((std::uintptr_t) xtra >
+                (std::uintptr_t)(
+                    (char*) &(this->impl_.callback_fn_.pe) + sizeof(int)));
+            return xtra;
+        }
+
         inline s_callback_fn_& callback_fn(void)
         {
             CmiAssert(this->kind_ == destination_kind::Callback);
