@@ -17,7 +17,7 @@ Status:
 
 ## Build Instructions:
 
-To build charmlite, the following dependecies are required:
+To build charmlite, the following dependencies are required:
 - ~~A valid charm install and `${env:CHARM_HOME}` set to it.~~
 - A cmake version higher than or equal to 3.16
 - A C++11 conforming compiler
