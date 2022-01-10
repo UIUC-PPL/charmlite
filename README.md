@@ -1,10 +1,11 @@
 # CharmLite
 
 Status:
-- Requires that `${env:CHARM_HOME}` points to a valid Charm++ build.
+- ~~Requires that `${env:CHARM_HOME}` points to a valid Charm++ build~~.
     - The lightest possible build is:
     `./build AMPI-only <triplet> <compiler>? --with-production -DCSD_NO_IDLE_TRACING=1 -DCSD_NO_PERIODIC=1`
     - Binaries should be compiled with `-fno-exceptions -fno-unwind-tables` to further minimize overheads.
+    - Requires a valid Charm++ while building Charmlite (can be appended to `CMAKE_PREFIX_PATH`)
 - Only tested with non-SMP builds, SMP builds ~~currently crash~~:
     - ~~This can be fixed by correctly isolating globals as Csv/Cpv.~~
     - Probably fixed but needs more testing.
@@ -17,7 +18,7 @@ Status:
 ## Build Instructions:
 
 To build charmlite, the following dependecies are required:
-- A valid charm install and `${env:CHARM_HOME}` set to it.
+- ~~A valid charm install and `${env:CHARM_HOME}` set to it.~~
 - A cmake version higher than or equal to 3.16
 - A C++11 conforming compiler
 
@@ -27,7 +28,7 @@ charmlite is as follows:-
 ```
 $ git clone https://github.com/UIUC-PPL/charmlite
 $ cd charmlite && mkdir build && cd build
-$ cmake -DCMAKE_INSTALL_PREFIX=<installation directory> ..
+$ cmake -DCMAKE_INSTALL_PREFIX=<installation directory> -DCMAKE_PREFIX_PATH=<Charm++ installation directory> ..
 $ make -j$(nproc)
 $ make install
 ```
@@ -37,7 +38,8 @@ the user can enable using cmake:-
 1. CHARMLITE_ENABLE_EXAMPLES - Enables building examples (default: ON)
 2. CHARMLITE_ENABLE_TESTS - Enables building and testing tests (default: OFF)
 3. CHARMLITE_ENABLE_BENCHMARKS - Enables building and testing benchmarks (default: OFF)
-4. CHARMLITE_BENCHMARK_PE - PE argument passed to Benchmarks (default: 2)
+4. CHARMLITE_BENCHMARK_PE - PE argument passed to tests (default: 2)
+5. CHARMLITE_BENCHMARK_PPN - PEs per node passed to tests (default: 2)
 
 ## Using Charmlite in dependant applications:
 
@@ -86,4 +88,4 @@ charmlite and set various charmlite related cmake flags.
 ## Overall
 
 Overall... need more examples; feel free to _try_ porting your favorite example. Agenda:
-- Jacobi2d
+- ~~Jacobi2d~~
