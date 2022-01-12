@@ -89,3 +89,6 @@ charmlite and set various charmlite related cmake flags.
 
 Overall... need more examples; feel free to _try_ porting your favorite example. Agenda:
 - ~~Jacobi2d~~
+- Cannon's Matrix-Matrix Multiplication (Justin)
+- FFT (Tree-based)
+- FEM
