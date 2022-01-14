@@ -45,6 +45,8 @@ namespace cmk {
                     // TODO ( that said, it should be elim'd for node/groups   )
                     if (this->locmgr_.pe_for(view) == CmiMyPe())
                     {
+                        // simulate an insertion event
+                        this->produce();
                         // message should be packed
                         auto clone = msg->clone();
                         clone->dst_.endpoint().chare = view;

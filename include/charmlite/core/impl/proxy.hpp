@@ -16,6 +16,7 @@ namespace cmk {
             message_extractor<arg_type>::get(std::forward<Args>(args)...);
         new (&(msg->dst_))
             destination(this->id_, this->idx_, constructor<T, arg_type>());
+        cmk::system_detector_()->produce(this->id_, 1);
         cmk::send(std::move(msg));
     }
 

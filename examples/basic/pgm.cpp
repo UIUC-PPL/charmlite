@@ -28,7 +28,9 @@ struct foo : public cmk::chare<foo, int>
 
     void bar(cmk::message_ptr<test_message>&& msg)
     {
-        CmiPrintf("ch%d@pe%d> %d+%d=%d\n", this->index(), CmiMyPe(), this->val,
+        auto mine = CmiMyPe();
+        CmiAssert((mine != 0) || (CmiNumPes() == 1));
+        CmiPrintf("ch%d@pe%d> %d+%d=%d\n", this->index(), mine, this->val,
             msg->val, this->val + msg->val);
         auto cb =
             cmk::callback<cmk::message>::construct<cmk::exit>(cmk::all::pes);
@@ -45,10 +47,15 @@ int main(int argc, char** argv)
         // create a collection
         auto arr = cmk::collection_proxy<foo>::construct();
         // OVER DECOMPOSE!
-        auto n = 8 * CmiNumPes();
+        auto nPes = CmiNumPes();
+        auto n = 8 * nPes;
         for (auto i = 0; i < n; i++)
         {
-            arr[i].insert(cmk::make_message<test_message>(i));
+            if ((i % nPes == 0) && (nPes != 1)) {
+                n++;
+            } else {
+                arr[i].insert(cmk::make_message<test_message>(i));
+            }
         }
         // then send 'em a buncha' messages
         arr.broadcast<test_message, &foo::bar>(
