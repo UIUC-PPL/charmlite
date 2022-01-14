@@ -44,8 +44,10 @@ namespace cmk {
                     // NOTE ( I'm pretty sure this is no worse than what Charm )
                     //      ( does vis-a-vis CKARRAYMAP_POPULATE_INITIAL       )
                     // TODO ( that said, it should be elim'd for node/groups   )
-                    if (this->locmgr_.lookup(view) == CmiMyPe())
+                    if (this->locmgr_.home_pe(view) == CmiMyPe())
                     {
+                        // simulate an insertion event
+                        this->produce();
                         // message should be packed
                         auto clone = msg->clone();
                         clone->dst_.endpoint().chare = view;

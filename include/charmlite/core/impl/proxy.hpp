@@ -14,6 +14,7 @@ namespace cmk {
         CmiAssertMsg(pe < CmiNumPes(), "invalid pe value passed!");
         new (&(msg->dst_)) destination(
             this->id_, this->idx_, constructor<T, message_ptr<Message>&&>());
+        cmk::system_detector_()->produce(this->id_, 1);
         if (pe < 0)
             cmk::send(std::move(msg));
         else
@@ -27,6 +28,7 @@ namespace cmk {
         auto msg = message_extractor<void>::get();
         new (&(msg->dst_))
             destination(this->id_, this->idx_, constructor<T, void>());
+        cmk::system_detector_()->produce(this->id_, 1);
         if (pe < 0)
             cmk::send(std::move(msg));
         else

@@ -132,6 +132,8 @@ namespace cmk {
             return false;
         }
 
+        void produce(void) {}
+
         void set_insertion_status(bool, std::nullptr_t) {}
 
         const chare_index_t* root(void) const
@@ -183,6 +185,14 @@ namespace cmk {
           : collection_base_(id)
           , endpoint_(cmk::helper_::chare_bcast_root_)
         {
+        }
+
+        void produce(std::int64_t count = 1)
+        {
+            if (count != 0)
+            {
+                system_detector_()->produce(this->id_, count);
+            }
         }
 
         bool is_inserting(void) const
@@ -307,14 +317,6 @@ namespace cmk {
             return msg;
         }
 
-        void produce(std::int64_t count = 1)
-        {
-            if (count != 0)
-            {
-                system_detector_()->produce(this->id_, count);
-            }
-        }
-
         void consume(void)
         {
             this->produce(-1);
@@ -365,6 +367,7 @@ namespace cmk {
 
         void register_endpoint(const facade_& f, const chare_index_t& idx)
         {
+            CmiAssert(this->endpoint_ == helper_::chare_bcast_root_);
             this->endpoint_ = idx;
             auto elt =
                 f.elt_ ? f.elt_ : this->template lookup<chare_base_>(idx);
@@ -395,17 +398,30 @@ namespace cmk {
         {
             auto mine = CmiMyPe();
             auto parent = binary_tree::parent(mine);
-            if (parent >= 0)
-            {
+
+            auto send = [&](int pe) {
                 auto src = f.elt_ == nullptr ? f.pe_ : mine;
                 auto msg = this->make_message<index_message,
                     &self_type::receive_downstream>(src, idx);
-                send_helper_(parent, std::move(msg));
+                send_helper_(pe, std::move(msg));
+            };
+
+            if (parent >= 0)
+            {
+                send(parent);
+            }
+            else if (this->endpoint_ == helper_::chare_bcast_root_)
+            {
+                // set the element as the endpoint if it
+                // hasn't been set before
+                this->register_endpoint(f, idx);
             }
             else
             {
-                this->register_endpoint(f, idx);
+                // TODO ( this is a fascimile of send_downstream )
+                send((this->locmgr_).lookup(this->endpoint_));
             }
+
             this->produce();
         }
 
@@ -486,6 +502,8 @@ namespace cmk {
                 {
                     assoc->put_parent(target->index_);
                 }
+                // confirm the element's been created
+                this->consume();
             }
             else
             {
