@@ -108,7 +108,7 @@ namespace cmk {
             auto my_pe = CmiMyPe();
             if (rec && rec->is_constructor_)
             {
-                if(msg->createhere() || home_pe == my_pe)
+                if (msg->createhere() || home_pe == my_pe)
                 {
                     auto* ch = static_cast<T*>((record_for<T>()).allocate());
                     // set properties of the newly created chare
@@ -143,11 +143,11 @@ namespace cmk {
                     if (home_pe == my_pe && loc == home_pe)
                         return false;
                     // this pe has the location of idx from either the locmap
-                    // or the routing cache, 
+                    // or the routing cache,
                     // forward the message to that location
                     else if (loc != home_pe)
                     {
-                        if (msg->sender_pe_ != my_pe)
+                        if (msg->sender_pe_ >= 0 && msg->sender_pe_ != my_pe)
                             msg->is_forwarded() = true;
                         send_helper_(loc, std::move(msg));
                     }
@@ -157,7 +157,7 @@ namespace cmk {
                     // XXX ( update bcast? prolly not. )
                     else
                     {
-                        if (msg->sender_pe_ != my_pe)
+                        if (msg->sender_pe_ >= 0 && msg->sender_pe_ != my_pe)
                             msg->is_forwarded() = true;
                         send_helper_(home_pe, std::move(msg));
                     }
@@ -168,8 +168,10 @@ namespace cmk {
                     // the home pe and msg was forwarded at least once
                     // send a routing update message to sender pe to
                     // update the routing cache
-                    if(home_pe != my_pe && msg->sender_pe_ != home_pe && msg->is_forwarded())
-                        this->send_location_update_(idx, msg->sender_pe_, my_pe);
+                    if (home_pe != my_pe && msg->sender_pe_ != home_pe &&
+                        msg->is_forwarded())
+                        this->send_location_update_(
+                            idx, msg->sender_pe_, my_pe);
                     // otherwise, invoke the EP on the chare
                     handle_(rec, (find->second).get(), std::move(msg));
                 }
@@ -218,10 +220,10 @@ namespace cmk {
 
         inline void deliver_later(message_ptr<>&& msg)
         {
-            auto& ep = msg->dst_.endpoint();
-            auto& idx = ep.chare;
+            auto& idx = msg->dst_.endpoint().chare;
             auto pe = (idx == cmk::helper_::chare_bcast_root_) ?
-                CmiMyPe() : this->locmgr_.lookup(idx);
+                CmiMyPe() :
+                this->locmgr_.lookup(idx);
             send_helper_(pe, std::move(msg));
         }
 
@@ -344,6 +346,7 @@ namespace cmk {
                 {
                     auto clone = msg->clone();
                     clone->dst_.endpoint().chare = child;
+                    clone->sender_pe_ = CmiMyPe();
                     this->deliver_later(std::move(clone));
                 }
                 // process the message locally

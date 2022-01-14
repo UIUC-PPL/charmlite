@@ -100,7 +100,7 @@ namespace cmk {
         int lookup(const chare_index_t& idx)
         {
             auto find = this->locmap_.find(idx);
-            if(find == std::end(this->locmap_))
+            if (find == std::end(this->locmap_))
             {
                 return lookup_cache(idx);
             }
@@ -113,7 +113,7 @@ namespace cmk {
         int lookup_cache(const chare_index_t& idx)
         {
             auto find = this->routing_cache_.find(idx);
-            if(find == std::end(this->routing_cache_))
+            if (find == std::end(this->routing_cache_))
             {
                 return this->home_pe(idx);
             }

@@ -12,8 +12,8 @@ namespace cmk {
     void element_proxy<T>::insert(message_ptr<Message>&& msg, int pe) const
     {
         CmiAssertMsg(pe < CmiNumPes(), "invalid pe value passed!");
-        new (&(msg->dst_))
-            destination(this->id_, this->idx_, constructor<T, message_ptr<Message>&&>());
+        new (&(msg->dst_)) destination(
+            this->id_, this->idx_, constructor<T, message_ptr<Message>&&>());
         if (pe < 0)
             cmk::send(std::move(msg));
         else

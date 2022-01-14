@@ -38,9 +38,7 @@ namespace cmk {
             return static_cast<T*>(this->lookup(idx));
         }
 
-        virtual void flush_buffers(const chare_index_t& idx)
-        {
-        }
+        virtual void flush_buffers(const chare_index_t& idx) {}
     };
 
     inline collection_base_* lookup(collection_index_t idx);
@@ -141,7 +139,8 @@ namespace cmk {
             return &(this->endpoint_);
         }
 
-        void send_location_update_(const chare_index_t& idx, int home_pe, int loc)
+        void send_location_update_(
+            const chare_index_t& idx, int home_pe, int loc)
         {
         }
     };
@@ -169,7 +168,8 @@ namespace cmk {
         static entry_id_t receive_location_update(void)
         {
             using receiver_type = member_fn_t<self_type, location_message>;
-            return cmk::entry<receiver_type, &self_type::receive_location_update>();
+            return cmk::entry<receiver_type,
+                &self_type::receive_location_update>();
         }
 
     protected:
@@ -240,7 +240,8 @@ namespace cmk {
                 &self_type::insertion_complete_>(cmk::all::pes);
         }
 
-        void send_location_update_(const chare_index_t& idx, int dst_pe, int loc)
+        void send_location_update_(
+            const chare_index_t& idx, int dst_pe, int loc)
         {
             auto msg = cmk::make_message<location_message>(loc);
             new (&msg->dst_) destination(this->id_, idx,
