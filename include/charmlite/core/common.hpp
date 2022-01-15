@@ -173,6 +173,8 @@ namespace cmk {
 
     void send(message_ptr<>&&);
 
+    void send(message_ptr<>&&, int);
+
     inline void send(message_ptr<>&& msg, bool immediate);
 
     using chare_index_t =

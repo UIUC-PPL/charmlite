@@ -82,8 +82,10 @@ namespace cmk {
         {
         }
 
-        template <typename... Args>
-        void insert(Args&&... args) const;
+        template <typename Message>
+        void insert(message_ptr<Message>&& msg, int pe = -1) const;
+
+        void insert(int pe = -1) const;
 
         template <typename Message, member_fn_t<T, Message> Fn>
         void send(message_ptr<Message>&& msg) const;

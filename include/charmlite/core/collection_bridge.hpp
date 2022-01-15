@@ -37,6 +37,8 @@ namespace cmk {
         {
             return static_cast<T*>(this->lookup(idx));
         }
+
+        virtual void flush_buffers(const chare_index_t& idx) {}
     };
 
     inline collection_base_* lookup(collection_index_t idx);
@@ -92,7 +94,7 @@ namespace cmk {
             auto& assoc = elt->association_;
             if (created)
             {
-                auto pe = this->locmgr_.pe_for(elt->index_);
+                auto pe = this->locmgr_.lookup(elt->index_);
                 auto n_children = this->locmgr_.num_span_tree_children(pe);
                 CmiAssert(!assoc && (pe == CmiMyPe()));
                 assoc.reset(new association_);
@@ -138,6 +140,11 @@ namespace cmk {
         {
             return &(this->endpoint_);
         }
+
+        void send_location_update_(
+            const chare_index_t& idx, int home_pe, int loc)
+        {
+        }
     };
 
     // this more or less implements the logic of hypercomm's
@@ -150,11 +157,21 @@ namespace cmk {
         using self_type = collection_bridge_<T, Mapper>;
         using element_type = chare_base_*;
 
+        using index_message = data_message<std::pair<int, chare_index_t>>;
+        using location_message = data_message<int>;
+
     public:
         static entry_id_t receive_status(void)
         {
             using receiver_type = member_fn_t<self_type, data_message<bool>>;
             return cmk::entry<receiver_type, &self_type::receive_status>();
+        }
+
+        static entry_id_t receive_location_update(void)
+        {
+            using receiver_type = member_fn_t<self_type, location_message>;
+            return cmk::entry<receiver_type,
+                &self_type::receive_location_update>();
         }
 
     protected:
@@ -233,6 +250,16 @@ namespace cmk {
                 &self_type::insertion_complete_>(cmk::all::pes);
         }
 
+        void send_location_update_(
+            const chare_index_t& idx, int dst_pe, int loc)
+        {
+            auto msg = cmk::make_message<location_message>(loc);
+            new (&msg->dst_) destination(this->id_, idx,
+                collection<T, Mapper>::receive_location_update());
+            msg->for_collection() = true;
+            send_helper_(dst_pe, std::move(msg));
+        }
+
     private:
         void receive_status(message_ptr<data_message<bool>>&& msg)
         {
@@ -278,8 +305,6 @@ namespace cmk {
             }
         };
 
-        using index_message = data_message<std::pair<int, chare_index_t>>;
-
         template <typename Message, member_fn_t<self_type, Message> Fn,
             typename... Args>
         cmk::message_ptr<Message> make_message(Args&&... args)
@@ -295,6 +320,14 @@ namespace cmk {
         void consume(void)
         {
             this->produce(-1);
+        }
+
+        void receive_location_update(cmk::message_ptr<location_message>&& msg)
+        {
+            auto& pe = msg->value();
+            auto& idx = msg->dst_.endpoint().chare;
+            this->locmgr_.update_location(idx, pe);
+            flush_buffers(idx);
         }
 
         void receive_upstream(cmk::message_ptr<index_message>&& msg)
@@ -386,7 +419,7 @@ namespace cmk {
             else
             {
                 // TODO ( this is a fascimile of send_downstream )
-                send((this->locmgr_).pe_for(this->endpoint_));
+                send((this->locmgr_).lookup(this->endpoint_));
             }
 
             this->produce();

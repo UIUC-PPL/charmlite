@@ -10,9 +10,14 @@ namespace cmk {
     template <typename Index>
     struct default_mapper
     {
-        int pe_for(const chare_index_t& idx) const
+        int home_pe(const chare_index_t& idx) const
         {
             return (idx % CmiNumPes());
+        }
+
+        int lookup(const chare_index_t& idx)
+        {
+            return home_pe(idx);
         }
 
         int num_span_tree_children(int pe)
@@ -45,7 +50,7 @@ namespace cmk {
     template <>
     struct nodegroup_mapper<int> : public default_mapper<int>
     {
-        int pe_for(const chare_index_t& idx) const
+        int home_pe(const chare_index_t& idx) const
         {
             return CmiNodeFirst(idx);
         }
@@ -76,16 +81,60 @@ namespace cmk {
         Mapper mapper_;
 
     public:
-        int pe_for(const chare_index_t& idx) const
+        int home_pe(const chare_index_t& idx) const
         {
-            return this->mapper_.pe_for(idx);
+            return this->mapper_.home_pe(idx);
         }
     };
 
     template <typename Mapper>
     class locmgr : public locmgr_base_<Mapper>
     {
-        // TODO ( determine what should go here... )
+        using location_map_t = std::unordered_map<chare_index_t, int>;
+
+    private:
+        location_map_t locmap_;
+        location_map_t routing_cache_;
+
+    public:
+        int lookup(const chare_index_t& idx)
+        {
+            auto find = this->locmap_.find(idx);
+            if (find == std::end(this->locmap_))
+            {
+                return lookup_cache(idx);
+            }
+            else
+            {
+                return find->second;
+            }
+        }
+
+        int lookup_cache(const chare_index_t& idx)
+        {
+            auto find = this->routing_cache_.find(idx);
+            if (find == std::end(this->routing_cache_))
+            {
+                return this->home_pe(idx);
+            }
+            else
+            {
+                return find->second;
+            }
+        }
+
+        void update_location(const chare_index_t& idx, const int pe)
+        {
+            // TODO - how to handle same element created on multiple PEs?
+            if (CmiMyPe() == this->home_pe(idx))
+            {
+                this->locmap_[idx] = pe;
+            }
+            else
+            {
+                this->routing_cache_[idx] = pe;
+            }
+        }
     };
 }    // namespace cmk
 

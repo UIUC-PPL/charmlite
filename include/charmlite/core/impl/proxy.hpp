@@ -8,16 +8,31 @@ namespace cmk {
 
     // Element Proxy member functions
     template <typename T>
-    template <typename... Args>
-    void element_proxy<T>::insert(Args&&... args) const
+    template <typename Message>
+    void element_proxy<T>::insert(message_ptr<Message>&& msg, int pe) const
     {
-        using arg_type = pack_helper_t<Args&&...>;
-        auto msg =
-            message_extractor<arg_type>::get(std::forward<Args>(args)...);
-        new (&(msg->dst_))
-            destination(this->id_, this->idx_, constructor<T, arg_type>());
+        CmiAssertMsg(pe < CmiNumPes(), "invalid pe value passed!");
+        new (&(msg->dst_)) destination(
+            this->id_, this->idx_, constructor<T, message_ptr<Message>&&>());
         cmk::system_detector_()->produce(this->id_, 1);
-        cmk::send(std::move(msg));
+        if (pe < 0)
+            cmk::send(std::move(msg));
+        else
+            cmk::send(std::move(msg), pe);
+    }
+
+    template <typename T>
+    void element_proxy<T>::insert(int pe) const
+    {
+        CmiAssertMsg(pe < CmiNumPes(), "invalid pe value passed!");
+        auto msg = message_extractor<void>::get();
+        new (&(msg->dst_))
+            destination(this->id_, this->idx_, constructor<T, void>());
+        cmk::system_detector_()->produce(this->id_, 1);
+        if (pe < 0)
+            cmk::send(std::move(msg));
+        else
+            cmk::send(std::move(msg), pe);
     }
 
     template <typename T>
@@ -26,6 +41,7 @@ namespace cmk {
     {
         new (&(msg->dst_)) destination(
             this->id_, this->idx_, entry<member_fn_t<T, Message>, Fn>());
+        msg->sender_pe_ = CmiMyPe();
         cmk::send(std::move(msg));
     }
 
