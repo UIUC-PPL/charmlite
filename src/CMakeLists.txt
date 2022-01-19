@@ -6,5 +6,4 @@ set(LIB_FILES
 
 add_library(charmlite STATIC ${LIB_FILES})
 target_include_directories(charmlite
-    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
+    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)

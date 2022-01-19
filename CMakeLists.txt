@@ -8,12 +8,6 @@ if(CMAKE_VERSION VERSION_GREATER 3.22.1 OR CMAKE_VERSION VERSION_EQUAL 3.22.1)
     cmake_policy(SET CMP0115 OLD)
 endif()
 
-# Make sure all executables go in bin directory and all libraries go in lib
-# directory.
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
-
 # Make Default Build Type Release
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE
@@ -30,8 +24,15 @@ message(STATUS "Found Charm++ at ${CHARM_ROOT}")
 message(STATUS "Switching to Charm CXX Compiler: ${CHARM_ROOT}/bin/charmc")
 
 set(CMAKE_CXX_COMPILER ${CHARM_CXX_COMPILER})
+
 # Make sure correct compiler is set before starting the project
 project(CharmLite CXX)
+
+# Make sure all executables go in bin directory and all libraries go in lib
+# directory.
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 
 set(CMAKE_CXX_FLAGS "-language converse++ -Wall -Wextra" CACHE STRING "Additional arguments to charmc" FORCE)
 
