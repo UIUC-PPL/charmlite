@@ -16,6 +16,8 @@ namespace cmk {
     // these can be nix'd when we upgrade to c++17
     constexpr int default_options<int>::start;
     constexpr int default_options<int>::step;
+    constexpr std::tuple<int, int> default_options<std::tuple<int, int>>::start;
+    constexpr std::tuple<int, int> default_options<std::tuple<int, int>>::step;
 
     CpvDeclare(collection_table_t, collection_table_);
     CpvDeclare(collection_buffer_t, collection_buffer_);
