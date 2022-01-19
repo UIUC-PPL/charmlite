@@ -51,9 +51,12 @@ int main(int argc, char** argv)
         auto n = 8 * nPes;
         for (auto i = 0; i < n; i++)
         {
-            if ((i % nPes == 0) && (nPes != 1)) {
+            if ((i % nPes == 0) && (nPes != 1))
+            {
                 n++;
-            } else {
+            }
+            else
+            {
                 arr[i].insert(cmk::make_message<test_message>(i));
             }
         }
