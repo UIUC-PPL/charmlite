@@ -72,7 +72,7 @@ namespace cmk {
             }
         }
 
-        void flush_buffers(const chare_index_t& idx)
+        virtual void flush_buffers(const chare_index_t& idx) override
         {
             auto find = this->buffers_.find(idx);
             if (find == std::end(this->buffers_))

@@ -38,7 +38,7 @@ namespace cmk {
             return static_cast<T*>(this->lookup(idx));
         }
 
-        virtual void flush_buffers(const chare_index_t& idx) {}
+        virtual void flush_buffers(const chare_index_t&) {}
     };
 
     inline collection_base_* lookup(collection_index_t idx);
@@ -141,10 +141,7 @@ namespace cmk {
             return &(this->endpoint_);
         }
 
-        void send_location_update_(
-            const chare_index_t& idx, int home_pe, int loc)
-        {
-        }
+        void send_location_update_(const chare_index_t&, int, int) {}
     };
 
     // this more or less implements the logic of hypercomm's
