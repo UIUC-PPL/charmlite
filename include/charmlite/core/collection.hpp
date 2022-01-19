@@ -35,12 +35,15 @@ namespace cmk {
             this->set_insertion_status(true, {});
             if (msg)
             {
-                auto& end = opts.end();
-                auto& step = opts.step();
+                using view_type = index_view<index_type>;
+                typename view_type::range_type range(
+                    opts.start(), opts.step(), opts.end()
+                );
                 // deliver a copy of the message to all "seeds"
-                for (auto seed = opts.start(); seed != end; seed += step)
+                while (range.has_next())
                 {
-                    auto view = index_view<index_type>::encode(seed);
+                    auto next = range.next();
+                    auto view = view_type::encode(next);
                     // NOTE ( I'm pretty sure this is no worse than what Charm )
                     //      ( does vis-a-vis CKARRAYMAP_POPULATE_INITIAL       )
                     // TODO ( that said, it should be elim'd for node/groups   )
@@ -72,7 +75,7 @@ namespace cmk {
             }
         }
 
-        void flush_buffers(const chare_index_t& idx)
+        virtual void flush_buffers(const chare_index_t& idx) override
         {
             auto find = this->buffers_.find(idx);
             if (find == std::end(this->buffers_))

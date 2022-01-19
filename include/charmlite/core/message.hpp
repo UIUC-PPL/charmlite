@@ -88,16 +88,16 @@ namespace cmk {
 
         message(void)
           : kind_(0)
-          , sender_pe_(-1)
           , total_size_(sizeof(message))
+          , sender_pe_(-1)
         {
             CmiSetHandler(this, CpvAccess(converse_handler_));
         }
 
         message(message_kind_t kind, std::size_t total_size)
           : kind_(kind)
-          , sender_pe_(-1)
           , total_size_(total_size)
+          , sender_pe_(-1)
         {
             // FIXME ( DRY failure )
             CmiSetHandler(this, CpvAccess(converse_handler_));

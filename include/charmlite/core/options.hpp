@@ -1,31 +1,9 @@
 #ifndef CHARMLITE_CORE_OPTIONS_HPP
 #define CHARMLITE_CORE_OPTIONS_HPP
 
-#include <charmlite/core/common.hpp>
+#include <charmlite/core/indexing.hpp>
 
 namespace cmk {
-    template <typename T, typename Enable = void>
-    struct index_view
-    {
-        static_assert(sizeof(T) <= sizeof(chare_index_t),
-            "index must fit in constraints!");
-
-        static T& decode(chare_index_t& idx)
-        {
-            return reinterpret_cast<T&>(idx);
-        }
-
-        static const T& decode(const chare_index_t& idx)
-        {
-            return reinterpret_cast<const T&>(idx);
-        }
-
-        static chare_index_t encode(const T& idx)
-        {
-            return static_cast<chare_index_t>(idx);
-        }
-    };
-
     template <typename Index>
     class default_options;
 
@@ -35,6 +13,14 @@ namespace cmk {
     public:
         static constexpr int start = 0;
         static constexpr int step = 1;
+    };
+
+    template <>
+    class default_options<std::tuple<int, int>>
+    {
+    public:
+        static constexpr std::tuple<int, int> start = {0, 0};
+        static constexpr std::tuple<int, int> step = {1, 1};
     };
 
     class collection_options_base_
@@ -64,6 +50,7 @@ namespace cmk {
         using defaults = default_options<Index>;
 
     public:
+        // TODO ( zero-init'ing all elements may not be valid )
         collection_options(void)
           : collection_options_base_(0, 0, 0)
         {
