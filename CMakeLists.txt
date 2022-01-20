@@ -42,7 +42,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # charmc currently appends -std=c++11 so we need to explicitly pass the
 # option again
-add_compile_options(-cpp-option -std=c++17)
+add_compile_options(-c++-option -std=c++17)
 
 # Add cmake to module path
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
