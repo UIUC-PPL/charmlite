@@ -88,25 +88,13 @@ namespace cmk {
     message_kind_t message_helper_<T>::kind_ = register_message_<T>();
 
     // helper struct to erase type of combiners/callbacks
+    // TODO: replace with template <auto> ...
     template <typename Message, template <class> class Function,
-        Function<Message> Fn, typename Enable = void>
-    struct function_wrapper_;
-
-    template <template <class> class Function, Function<message> Fn>
-    struct function_wrapper_<message, Function, Fn>
+        Function<Message> Fn>
+    struct function_wrapper_
     {
-        // no type erasure needed for the "base" case
-        static constexpr Function<message> fn(void)
-        {
-            return Fn;
-        }
-    };
-
-    template <typename Message, combiner_fn_t<Message> Fn>
-    struct function_wrapper_<Message, combiner_fn_t, Fn,
-        typename std::enable_if<!std::is_same<message, Message>::value>::type>
-    {
-        static message_ptr<> impl_(message_ptr<>&& lhs, message_ptr<>&& rhs)
+        static message_ptr<> impl_combiner_fn_t(
+            message_ptr<>&& lhs, message_ptr<>&& rhs)
         {
             // capture and retype pointers
             auto* lhs_typed = static_cast<Message*>(lhs.release());
@@ -117,26 +105,36 @@ namespace cmk {
             return Fn(std::move(lhs_owned), std::move(rhs_owned));
         }
 
-        static constexpr combiner_fn_t<message> fn(void)
-        {
-            return &(function_wrapper_<Message, combiner_fn_t, Fn>::impl_);
-        }
-    };
-
-    template <typename Message, callback_fn_t<Message> Fn>
-    struct function_wrapper_<Message, callback_fn_t, Fn,
-        typename std::enable_if<!std::is_same<message, Message>::value>::type>
-    {
-        static void impl_(message_ptr<>&& msg)
+        static void impl_callback_fn_t(message_ptr<>&& msg)
         {
             auto* typed = static_cast<Message*>(msg.release());
             message_ptr<Message> owned(typed);
             Fn(std::move(owned));
         }
 
-        static constexpr callback_fn_t<message> fn(void)
+        // no type erasure needed for the "base" case
+        static constexpr auto fn(void)
         {
-            return &(function_wrapper_<Message, callback_fn_t, Fn>::impl_);
+            if constexpr (std::is_same_v<decltype(Fn),
+                              combiner_fn_t<Message>> &&
+                !std::is_same_v<message, Message>)
+            {
+                // Specialization 1
+                return &(function_wrapper_<Message, combiner_fn_t,
+                    Fn>::impl_combiner_fn_t);
+            }
+            else if constexpr (std::is_same_v<decltype(Fn),
+                                   callback_fn_t<Message>> &&
+                !std::is_same_v<message, Message>)
+            {
+                // Specialization 2
+                return &(function_wrapper_<Message, callback_fn_t,
+                    Fn>::impl_callback_fn_t);
+            }
+            else
+            {
+                return Fn;
+            }
         }
     };
 
