@@ -185,7 +185,8 @@ public:
             ghost_data = (double*) msg->data;
             for (int j = 0; j < block_dim_y; ++j)
                 ghost_data[j] = temperature[1][j + 1];
-            this_proxy[std::tuple<int, int>(std::get<0>(this_index) - 1, std::get<1>(this_index))]
+            this_proxy[std::tuple<int, int>(std::get<0>(this_index) - 1,
+                           std::get<1>(this_index))]
                 .send<ghost_message, &jacobi::receive_ghosts>(std::move(msg));
         }
         if (!right_bound)
@@ -195,7 +196,8 @@ public:
             ghost_data = (double*) msg->data;
             for (int j = 0; j < block_dim_y; ++j)
                 ghost_data[j] = temperature[block_dim_x][j + 1];
-            this_proxy[std::tuple<int, int>(std::get<0>(this_index) + 1, std::get<1>(this_index))]
+            this_proxy[std::tuple<int, int>(std::get<0>(this_index) + 1,
+                           std::get<1>(this_index))]
                 .send<ghost_message, &jacobi::receive_ghosts>(std::move(msg));
         }
         if (!top_bound)
@@ -205,7 +207,8 @@ public:
             ghost_data = (double*) msg->data;
             for (int i = 0; i < block_dim_x; ++i)
                 ghost_data[i] = temperature[i + 1][1];
-            this_proxy[std::tuple<int, int>(std::get<0>(this_index), std::get<1>(this_index) - 1)]
+            this_proxy[std::tuple<int, int>(std::get<0>(this_index),
+                           std::get<1>(this_index) - 1)]
                 .send<ghost_message, &jacobi::receive_ghosts>(std::move(msg));
         }
         if (!bottom_bound)
@@ -215,7 +218,8 @@ public:
             ghost_data = (double*) msg->data;
             for (int i = 0; i < block_dim_x; ++i)
                 ghost_data[i] = temperature[i + 1][block_dim_y];
-            this_proxy[std::tuple<int, int>(std::get<0>(this_index), std::get<1>(this_index) + 1)]
+            this_proxy[std::tuple<int, int>(std::get<0>(this_index),
+                           std::get<1>(this_index) + 1)]
                 .send<ghost_message, &jacobi::receive_ghosts>(std::move(msg));
         }
     }
@@ -347,8 +351,8 @@ public:
     // for debugging
     void dump_matrix(array2d const& matrix)
     {
-        CmiPrintf(
-            "\n\n[%d,%d] iter = %i\n", std::get<0>(this_index), std::get<1>(this_index), iterations);
+        CmiPrintf("\n\n[%d,%d] iter = %i\n", std::get<0>(this_index),
+            std::get<1>(this_index), iterations);
         for (int i = 0; i < block_dim_x + 2; ++i)
         {
             for (int j = 0; j < block_dim_y + 2; ++j)
@@ -379,10 +383,10 @@ int main(int argc, char** argv)
             CmiError(
                 "OR %s [array_size] [block_size] maxiterations\n", argv[0]);
             CmiError("OR %s [array_size_X] [array_size_Y] [block_size_X] "
-                      "[block_size_Y] \n",
+                     "[block_size_Y] \n",
                 argv[0]);
             CmiError("OR %s [array_size_X] [array_size_Y] [block_size_X] "
-                      "[block_size_Y] maxiterations\n",
+                     "[block_size_Y] maxiterations\n",
                 argv[0]);
             CmiAbort("invalid arguments");
         }
@@ -423,12 +427,13 @@ int main(int argc, char** argv)
         start_time = CmiWallTimer();
 
         using shape_type = std::tuple<int, int>;
-        cmk::collection_options<shape_type> opts(shape_type(num_chare_x, num_chare_y));
+        cmk::collection_options<shape_type> opts(
+            shape_type(num_chare_x, num_chare_y));
         cmk::collection_proxy<jacobi>::construct(
-            cmk::make_message<setup_message>(
-                array_dim_x, array_dim_y, block_dim_x, block_dim_y,
-                num_chare_x, num_chare_y, maxiterations), opts
-        );
+            cmk::make_message<setup_message>(array_dim_x, array_dim_y,
+                block_dim_x, block_dim_y, num_chare_x, num_chare_y,
+                maxiterations),
+            opts);
     }
     cmk::finalize();
     return 0;

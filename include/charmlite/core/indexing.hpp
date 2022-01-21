@@ -35,11 +35,26 @@ namespace cmk {
                 }
             }
 
+            template <std::size_t I = 0>
+            inline constexpr bool plus_one_neq(
+                const type& lhs, const type& rhs) const
+            {
+                if constexpr (I == std::tuple_size<type>::value)
+                {
+                    return true;
+                }
+                else
+                {
+                    return (((std::get<I>(lhs) + 1) == std::get<I>(rhs)) &&
+                        plus_one_neq<I + 1>(lhs, rhs));
+                }
+            }
+
         public:
             inline constexpr bool operator()(
                 const type& lhs, const type& rhs) const
             {
-                return is_less(lhs, rhs);
+                return is_less(lhs, rhs) && !plus_one_neq(lhs, rhs);
             }
         };
 
