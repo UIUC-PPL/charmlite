@@ -5,8 +5,6 @@
 
 #include <charmlite/utilities/traits.hpp>
 
-#include <cassert>
-
 namespace cmk {
     inline const entry_record_* record_for(entry_id_t id)
     {
