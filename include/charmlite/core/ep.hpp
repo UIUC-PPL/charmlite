@@ -5,6 +5,8 @@
 
 #include <charmlite/utilities/traits.hpp>
 
+#include <cassert>
+
 namespace cmk {
     inline const entry_record_* record_for(entry_id_t id)
     {
@@ -44,27 +46,28 @@ namespace cmk {
         }
     };
 
-    template <typename A, typename B>
-    struct constructor_caller_;
-
-    template <typename A>
-    struct constructor_caller_<A, void>
+    template <typename A, typename MessagePtr>
+    struct constructor_caller_
     {
-        void operator()(void* self, message_ptr<>&&)
+        auto operator()(void* self, message_ptr<>&& msg)
         {
-            new (static_cast<A*>(self)) A;
-        }
-    };
-
-    template <typename A, typename Message>
-    struct constructor_caller_<A, message_ptr<Message>&&>
-    {
-        typename std::enable_if<is_message<Message>::value>::type operator()(
-            void* self, message_ptr<>&& msg)
-        {
-            auto* typed = static_cast<Message*>(msg.release());
-            message_ptr<Message> owned(typed);
-            new (static_cast<A*>(self)) A(std::move(owned));
+            if constexpr (cmk::message_compatibility_v<MessagePtr>)
+            {
+                using Message = cmk::get_message_t<MessagePtr>;
+                auto* typed = static_cast<Message*>(msg.release());
+                message_ptr<Message> owned(typed);
+                new (static_cast<A*>(self)) A(std::move(owned));
+            }
+            else if constexpr (std::is_same_v<MessagePtr, void>)
+            {
+                new (static_cast<A*>(self)) A;
+            }
+            else
+            {
+                assert(false &&
+                    "constructor_caller_ called with a message pointer of "
+                    "non-message type");
+            }
         }
     };
 
