@@ -62,7 +62,7 @@ namespace cmk {
             }
             else
             {
-                CmiEnforceMsg(false &&
+                CmiAbort(
                     "constructor_caller_ called with a message pointer of "
                     "non-message type");
             }
