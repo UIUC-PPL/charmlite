@@ -6,6 +6,8 @@
 
 #include <charmlite/utilities/traits.hpp>
 
+#include <iostream>
+
 namespace cmk {
     template <typename T, template <class> class Mapper>
     class collection : public collection_bridge_<T, Mapper>
@@ -37,12 +39,12 @@ namespace cmk {
             {
                 using view_type = index_view<index_type>;
                 typename view_type::range_type range(
-                    opts.start(), opts.step(), opts.end()
-                );
+                    opts.start(), opts.step(), opts.end());
+
                 // deliver a copy of the message to all "seeds"
                 while (range.has_next())
                 {
-                    auto next = range.next();
+                    auto next = range.advance();
                     auto view = view_type::encode(next);
                     // NOTE ( I'm pretty sure this is no worse than what Charm )
                     //      ( does vis-a-vis CKARRAYMAP_POPULATE_INITIAL       )
