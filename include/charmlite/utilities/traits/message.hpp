@@ -118,6 +118,37 @@ namespace cmk {
     template <typename T>
     using is_message_t = typename is_message<T>::type;
 
+    template <typename T>
+    inline constexpr bool is_message_v = is_message<T>::value;
+
+    template <typename T>
+    struct message_compatibility
+    {
+        static constexpr bool value = false;
+    };
+
+    template <typename Message>
+    struct message_compatibility<message_ptr<Message>&&>
+    {
+        static constexpr bool value = true;
+    };
+
+    template <typename T>
+    inline constexpr bool message_compatibility_v =
+        message_compatibility<T>::value;
+
+    template <typename T>
+    struct get_message;
+
+    template <typename T>
+    struct get_message<message_ptr<T>&&>
+    {
+        using type = T;
+    };
+
+    template <typename T>
+    using get_message_t = typename get_message<T>::type;
+
 }    // namespace cmk
 
 #endif

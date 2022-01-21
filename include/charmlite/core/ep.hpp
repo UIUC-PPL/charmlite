@@ -44,27 +44,28 @@ namespace cmk {
         }
     };
 
-    template <typename A, typename B>
-    struct constructor_caller_;
-
-    template <typename A>
-    struct constructor_caller_<A, void>
+    template <typename Chare, typename Argument>
+    struct constructor_caller_
     {
-        void operator()(void* self, message_ptr<>&&)
+        auto operator()(void* self, message_ptr<>&& msg)
         {
-            new (static_cast<A*>(self)) A;
-        }
-    };
-
-    template <typename A, typename Message>
-    struct constructor_caller_<A, message_ptr<Message>&&>
-    {
-        typename std::enable_if<is_message<Message>::value>::type operator()(
-            void* self, message_ptr<>&& msg)
-        {
-            auto* typed = static_cast<Message*>(msg.release());
-            message_ptr<Message> owned(typed);
-            new (static_cast<A*>(self)) A(std::move(owned));
+            if constexpr (cmk::message_compatibility_v<Argument>)
+            {
+                using Message = cmk::get_message_t<Argument>;
+                auto* typed = static_cast<Message*>(msg.release());
+                message_ptr<Message> owned(typed);
+                new (static_cast<Chare*>(self)) Chare(std::move(owned));
+            }
+            else if constexpr (std::is_same_v<Argument, void>)
+            {
+                new (static_cast<Chare*>(self)) Chare;
+            }
+            else
+            {
+                CmiAbort(
+                    "constructor_caller_ called with a message pointer of "
+                    "non-message type");
+            }
         }
     };
 
