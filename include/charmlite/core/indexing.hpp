@@ -35,26 +35,11 @@ namespace cmk {
                 }
             }
 
-            template <std::size_t I = 0>
-            inline constexpr bool plus_one_neq(
-                const type& lhs, const type& rhs) const
-            {
-                if constexpr (I == std::tuple_size<type>::value)
-                {
-                    return true;
-                }
-                else
-                {
-                    return (((std::get<I>(lhs) + 1) == std::get<I>(rhs)) &&
-                        plus_one_neq<I + 1>(lhs, rhs));
-                }
-            }
-
         public:
             inline constexpr bool operator()(
                 const type& lhs, const type& rhs) const
             {
-                return is_less(lhs, rhs) && !plus_one_neq(lhs, rhs);
+                return is_less(lhs, rhs);
             }
         };
 
@@ -95,7 +80,6 @@ namespace cmk {
             else if constexpr (I == std::tuple_size<type>::value)
             {
                 ss << ")";
-                to_string_impl<I + 1>(ss, idx);
             }
             else
             {
@@ -168,9 +152,9 @@ namespace cmk {
 
         index_type advance(void)
         {
-            curr_ = next_impl(this->curr_, this->curr_);
-
-            return curr_;
+            auto prev = this->curr_;
+            this->curr_ = next_impl(prev, prev);
+            return prev;
         }
 
         constexpr index_type next(index_type const& curr) const
@@ -300,9 +284,9 @@ namespace cmk {
 
         inline T advance(void)
         {
-            auto res = this->curr_;
+            auto prev = this->curr_;
             this->curr_ += this->step_;
-            return res;
+            return prev;
         }
 
         inline constexpr bool has_next(T const& curr) const
