@@ -40,8 +40,7 @@ namespace cmk {
     void element_proxy<T>::send(
         typename cmk::extract_message<decltype(Fn)>::ptr_type&& msg) const
     {
-        new (&(msg->dst_))
-            destination(this->id_, this->idx_, entry<decltype(Fn), Fn>());
+        new (&(msg->dst_)) destination(this->id_, this->idx_, entry<Fn>());
         msg->sender_pe_ = CmiMyPe();
         cmk::send(std::move(msg));
     }
@@ -51,7 +50,7 @@ namespace cmk {
     auto element_proxy<T>::callback(void) const
     {
         return cmk::callback<typename cmk::extract_message<decltype(Fn)>::type>(
-            this->id_, this->idx_, entry<decltype(Fn), Fn>());
+            this->id_, this->idx_, entry<Fn>());
     }
 
     template <typename T>

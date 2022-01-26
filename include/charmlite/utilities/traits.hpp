@@ -28,6 +28,7 @@ namespace cmk {
     {
         using type = Message;
         using ptr_type = message_ptr<Message>;
+        using template_t = T;
     };
 
     template <typename Message>
@@ -35,6 +36,16 @@ namespace cmk {
     {
         using type = Message;
         using ptr_type = message_ptr<Message>;
+    };
+
+    template <typename T>
+    struct is_member_fn_t : std::false_type
+    {
+    };
+
+    template <typename T, typename Message>
+    struct is_member_fn_t<member_fn_t<T, Message>> : std::true_type
+    {
     };
 
 }    // namespace cmk

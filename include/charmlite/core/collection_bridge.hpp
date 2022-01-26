@@ -161,14 +161,15 @@ namespace cmk {
         static entry_id_t receive_status(void)
         {
             using receiver_type = member_fn_t<self_type, data_message<bool>>;
-            return cmk::entry<receiver_type, &self_type::receive_status>();
+            return cmk::entry<static_cast<receiver_type>(
+                &self_type::receive_status)>();
         }
 
         static entry_id_t receive_location_update(void)
         {
             using receiver_type = member_fn_t<self_type, location_message>;
-            return cmk::entry<receiver_type,
-                &self_type::receive_location_update>();
+            return cmk::entry<static_cast<receiver_type>(
+                &self_type::receive_location_update)>();
         }
 
     protected:
@@ -307,7 +308,7 @@ namespace cmk {
         cmk::message_ptr<Message> make_message(Args&&... args)
         {
             auto msg = cmk::make_message<Message>(std::forward<Args>(args)...);
-            auto entry = cmk::entry<member_fn_t<self_type, Message>, Fn>();
+            auto entry = cmk::entry<Fn>();
             new (&(msg->dst_))
                 destination(this->id_, cmk::helper_::chare_bcast_root_, entry);
             msg->for_collection() = true;

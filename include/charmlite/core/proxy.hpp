@@ -134,8 +134,8 @@ namespace cmk {
         {
             using message_t = typename cmk::extract_message<decltype(Fn)>::type;
 
-            return cmk::callback<message_t>(this->id_,
-                cmk::helper_::chare_bcast_root_, entry<decltype(Fn), Fn>());
+            return cmk::callback<message_t>(
+                this->id_, cmk::helper_::chare_bcast_root_, entry<Fn>());
         }
 
         // template <typename Message, member_fn_t<T, Message> Fn>
@@ -144,8 +144,8 @@ namespace cmk {
             typename cmk::extract_message<decltype(Fn)>::ptr_type&& msg) const
         {
             // send a message to the broadcast root
-            new (&msg->dst_) destination(this->id_,
-                cmk::helper_::chare_bcast_root_, entry<decltype(Fn), Fn>());
+            new (&msg->dst_) destination(
+                this->id_, cmk::helper_::chare_bcast_root_, entry<Fn>());
             cmk::send(std::move(msg));
         }
 
