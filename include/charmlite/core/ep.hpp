@@ -24,15 +24,11 @@ namespace cmk {
         static entry_id_t id_;
     };
 
-    // template <typename T>
-    // struct get_type;
-
     template <auto Fn>
     struct entry_fn_impl_
     {
         static void call_(void* self, message_ptr<>&& msg)
         {
-            // using type = typename get_type<decltype(Fn)>::type;
             if constexpr (cmk::is_member_fn_t<decltype(Fn)>::value &&
                 cmk::is_message<
                     typename cmk::extract_message<decltype(Fn)>::type>::value)
@@ -53,26 +49,6 @@ namespace cmk {
             return entry_fn_helper_<(&call_), false>::id_;
         }
     };
-
-    // template <typename T, T t, typename Enable = void>
-    // struct entry_fn_impl_;
-
-    // template <typename T, typename Message, member_fn_t<T, Message> Fn>
-    // struct entry_fn_impl_<member_fn_t<T, Message>, Fn,
-    //     typename std::enable_if<is_message<Message>::value>::type>
-    // {
-    //     static void call_(void* self, message_ptr<>&& msg)
-    //     {
-    //         auto* typed = static_cast<Message*>(msg.release());
-    //         message_ptr<Message> owned(typed);
-    //         (static_cast<T*>(self)->*Fn)(std::move(owned));
-    //     }
-
-    //     static const entry_id_t& id_(void)
-    //     {
-    //         return entry_fn_helper_<(&call_), false>::id_;
-    //     }
-    // };
 
     template <typename Chare, typename Argument>
     struct constructor_caller_
