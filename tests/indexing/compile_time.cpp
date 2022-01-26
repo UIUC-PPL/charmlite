@@ -20,6 +20,8 @@ int main(int argc, char* argv[])
             index_range_2d.next(std::make_tuple(0, 0));
         static_assert(std::get<0>(next_2d) == 0 && std::get<1>(next_2d) == 0,
             "Next computed incorrectly for 2D range!");
+
+        cmk::exit();
     }
 
     cmk::finalize();
