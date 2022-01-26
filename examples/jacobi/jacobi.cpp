@@ -187,7 +187,7 @@ public:
                 ghost_data[j] = temperature[1][j + 1];
             this_proxy[std::tuple<int, int>(std::get<0>(this_index) - 1,
                            std::get<1>(this_index))]
-                .send<ghost_message, &jacobi::receive_ghosts>(std::move(msg));
+                .send<&jacobi::receive_ghosts>(std::move(msg));
         }
         if (!right_bound)
         {
@@ -198,7 +198,7 @@ public:
                 ghost_data[j] = temperature[block_dim_x][j + 1];
             this_proxy[std::tuple<int, int>(std::get<0>(this_index) + 1,
                            std::get<1>(this_index))]
-                .send<ghost_message, &jacobi::receive_ghosts>(std::move(msg));
+                .send<&jacobi::receive_ghosts>(std::move(msg));
         }
         if (!top_bound)
         {
@@ -209,7 +209,7 @@ public:
                 ghost_data[i] = temperature[i + 1][1];
             this_proxy[std::tuple<int, int>(std::get<0>(this_index),
                            std::get<1>(this_index) - 1)]
-                .send<ghost_message, &jacobi::receive_ghosts>(std::move(msg));
+                .send<&jacobi::receive_ghosts>(std::move(msg));
         }
         if (!bottom_bound)
         {
@@ -220,7 +220,7 @@ public:
                 ghost_data[i] = temperature[i + 1][block_dim_y];
             this_proxy[std::tuple<int, int>(std::get<0>(this_index),
                            std::get<1>(this_index) + 1)]
-                .send<ghost_message, &jacobi::receive_ghosts>(std::move(msg));
+                .send<&jacobi::receive_ghosts>(std::move(msg));
         }
     }
 
@@ -293,12 +293,9 @@ public:
         bool converged = (max_error <= THRESHOLD);
         auto msg = cmk::make_message<completion_message>(converged);
 
-        auto cb =
-            this_proxy
-                .callback<completion_message, &jacobi::check_completion>();
+        auto cb = this_proxy.callback<&jacobi::check_completion>();
         this->element_proxy()
-            .contribute<completion_message,
-                cmk::logical_and<typename completion_message::type>>(
+            .contribute<cmk::logical_and<typename completion_message::type>>(
                 std::move(msg), cb);
     }
 

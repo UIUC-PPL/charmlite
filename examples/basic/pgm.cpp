@@ -34,7 +34,7 @@ struct foo : public cmk::chare<foo, int>
             msg->val, this->val + msg->val);
         auto cb =
             cmk::callback<cmk::message>::construct<cmk::exit>(cmk::all::pes);
-        this->element_proxy().contribute<cmk::message, cmk::nop>(
+        this->element_proxy().contribute<cmk::nop<cmk::message>>(
             std::move(msg), cb);
     }
 };
@@ -61,8 +61,7 @@ int main(int argc, char** argv)
             }
         }
         // then send 'em a buncha' messages
-        arr.broadcast<test_message, &foo::bar>(
-            cmk::make_message<test_message>(n));
+        arr.broadcast<&foo::bar>(cmk::make_message<test_message>(n));
         // necessary to enable collective communication
         arr.done_inserting();
     }

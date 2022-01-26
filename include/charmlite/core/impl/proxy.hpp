@@ -36,32 +36,37 @@ namespace cmk {
     }
 
     template <typename T>
-    template <typename Message, member_fn_t<T, Message> Fn>
-    void element_proxy<T>::send(message_ptr<Message>&& msg) const
+    template <auto Fn>
+    void element_proxy<T>::send(
+        typename cmk::extract_message<decltype(Fn)>::ptr_type&& msg) const
     {
-        new (&(msg->dst_)) destination(
-            this->id_, this->idx_, entry<member_fn_t<T, Message>, Fn>());
+        new (&(msg->dst_))
+            destination(this->id_, this->idx_, entry<decltype(Fn), Fn>());
         msg->sender_pe_ = CmiMyPe();
         cmk::send(std::move(msg));
     }
 
     template <typename T>
-    template <typename Message, member_fn_t<T, Message> Fn>
-    cmk::callback<Message> element_proxy<T>::callback(void) const
+    template <auto Fn>
+    auto element_proxy<T>::callback(void) const
     {
-        return cmk::callback<Message>(
-            this->id_, this->idx_, entry<member_fn_t<T, Message>, Fn>());
+        return cmk::callback<typename cmk::extract_message<decltype(Fn)>::type>(
+            this->id_, this->idx_, entry<decltype(Fn), Fn>());
     }
 
     template <typename T>
-    template <typename Message, combiner_fn_t<Message> Combiner>
+    template <auto Combiner>
     void element_proxy<T>::contribute(
-        message_ptr<Message>&& msg, const cmk::callback<Message>& cb) const
+        typename cmk::extract_message<decltype(Combiner)>::ptr_type&& msg,
+        const cmk::callback<
+            typename cmk::extract_message<decltype(Combiner)>::type>& cb) const
     {
         // set the contribution's combiner
         msg->has_combiner() = true;
-        new (&(msg->dst_)) destination(
-            this->id_, this->idx_, combiner_helper_<Message, Combiner>::id_);
+        new (&(msg->dst_)) destination(this->id_, this->idx_,
+            combiner_helper_<
+                typename cmk::extract_message<decltype(Combiner)>::type,
+                Combiner>::id_);
         // set the contribution's continuation
         auto cont = msg->has_continuation();
         CmiAssertMsg(!cont, "continuation of contribution will be overriden");
@@ -170,7 +175,7 @@ namespace cmk {
             new (&msg->dst_) destination(id, cmk::helper_::chare_bcast_root_,
                 constructor<T, arg_type>());
             return msg;
-        })();
+        }) ();
         {
             using options_type = collection_options<int>;
             auto kind = collection_kind<T, mapper_type>();
