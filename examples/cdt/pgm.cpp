@@ -35,7 +35,7 @@ struct test : cmk::chare<test, int>
         {
             auto elt = this->element_proxy();
             // put the message back to if we don't
-            elt.send<cmk::message, &test::produce>(std::move(msg));
+            elt.send<&test::produce>(std::move(msg));
         }
         else
         {
@@ -55,7 +55,7 @@ struct test : cmk::chare<test, int>
         {
             auto elt = this->element_proxy();
             // put the message back to await local branch creation
-            elt.send<cmk::message, &test::consume>(std::move(msg));
+            elt.send<&test::consume>(std::move(msg));
         }
         else
         {

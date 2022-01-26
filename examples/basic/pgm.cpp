@@ -34,7 +34,7 @@ struct foo : public cmk::chare<foo, int>
             msg->val, this->val + msg->val);
         auto cb =
             cmk::callback<cmk::message>::construct<cmk::exit>(cmk::all::pes);
-        this->element_proxy().contribute<cmk::message, cmk::nop>(
+        this->element_proxy().contribute<cmk::nop<cmk::message>>(
             std::move(msg), cb);
     }
 };

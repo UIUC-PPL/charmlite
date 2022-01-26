@@ -30,6 +30,13 @@ namespace cmk {
         using ptr_type = message_ptr<Message>;
     };
 
+    template <typename Message>
+    struct extract_message<combiner_fn_t<Message>>
+    {
+        using type = Message;
+        using ptr_type = message_ptr<Message>;
+    };
+
 }    // namespace cmk
 
 #endif

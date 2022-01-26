@@ -64,8 +64,7 @@ struct pingpong : public cmk::chare<pingpong, int>
         cmk::message::free(msg);
         // then GO!
         this->startTime = CmiWallTimer();
-        peer.send<payload_message, &pingpong::receive_message>(
-            std::move(payload));
+        peer.send<&pingpong::receive_message>(std::move(payload));
     }
 
     void receive_message(cmk::message_ptr<payload_message>&& msg)
@@ -80,8 +79,7 @@ struct pingpong : public cmk::chare<pingpong, int>
         }
         else
         {
-            peer.send<payload_message, &pingpong::receive_message>(
-                std::move(msg));
+            peer.send<&pingpong::receive_message>(std::move(msg));
         }
     }
 };
@@ -113,10 +111,10 @@ int main(int argc, char** argv)
         // allocate the launch pack
         auto msg = cmk::make_message<run_message_t>(sz, nIts);
         // then run through a warm up phase
-        grp[0].send<run_message_t, &pingpong::run>(msg->clone<run_message_t>());
+        grp[0].send<&pingpong::run>(msg->clone<run_message_t>());
         CthSuspend();
         // then run through the measurement phase
-        grp[0].send<run_message_t, &pingpong::run>(std::move(msg));
+        grp[0].send<&pingpong::run>(std::move(msg));
         CthSuspend();
         // print the final round-trip time
         CmiPrintf("main> roundtrip time was %g us\n",

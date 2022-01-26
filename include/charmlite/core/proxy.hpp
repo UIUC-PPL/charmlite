@@ -7,6 +7,8 @@
 #include <charmlite/core/ep.hpp>
 #include <charmlite/core/locmgr.hpp>
 
+#include <charmlite/utilities/traits.hpp>
+
 namespace cmk {
 
     template <typename T, typename Enable = void>
@@ -87,16 +89,23 @@ namespace cmk {
 
         void insert(int pe = -1) const;
 
-        template <typename Message, member_fn_t<T, Message> Fn>
-        void send(message_ptr<Message>&& msg) const;
+        // template <typename Message, member_fn_t<T, Message> Fn>
+        template <auto Fn>
+        void send(
+            typename cmk::extract_message<decltype(Fn)>::ptr_type&& msg) const;
 
-        template <typename Message, member_fn_t<T, Message> Fn>
-        cmk::callback<Message> callback(void) const;
+        // template <typename Message, member_fn_t<T, Message> Fn>
+        template <auto Fn>
+        auto callback(void) const;
 
     protected:
-        template <typename Message, combiner_fn_t<Message> Combiner>
+        // template <typename Message, combiner_fn_t<Message> Combiner>
+        template <auto Combiner>
         void contribute(
-            message_ptr<Message>&& msg, const cmk::callback<Message>& cb) const;
+            typename cmk::extract_message<decltype(Combiner)>::ptr_type&& msg,
+            const cmk::callback<
+                typename cmk::extract_message<decltype(Combiner)>::type>& cb)
+            const;
     };
 
     template <typename T>

@@ -9,6 +9,7 @@
 #include <charmlite/core/completion.hpp>
 #include <charmlite/core/destination.hpp>
 #include <charmlite/core/ep.hpp>
+#include <charmlite/core/indexing.hpp>
 #include <charmlite/core/locmgr.hpp>
 #include <charmlite/core/message.hpp>
 #include <charmlite/core/options.hpp>

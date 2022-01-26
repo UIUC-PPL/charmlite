@@ -29,7 +29,7 @@ struct communicator : public cmk::chare<communicator, int>
             it = 0;
 
             auto cb = cmk::callback<cmk::message>::construct<resume_main>(0);
-            this->element_proxy().contribute<cmk::message, cmk::nop>(
+            this->element_proxy().contribute<cmk::nop<cmk::message>>(
                 std::move(msg), cb);
         }
         else if ((it % nChares) == this->index())
@@ -42,7 +42,7 @@ struct communicator : public cmk::chare<communicator, int>
     void recv_broadcast(cmk::message_ptr<>&& msg)
     {
         auto cb = this->collection_proxy().callback<&communicator::run>();
-        this->element_proxy().contribute<cmk::message, cmk::nop>(
+        this->element_proxy().contribute<cmk::nop<cmk::message>>(
             std::move(msg), cb);
     }
 };
