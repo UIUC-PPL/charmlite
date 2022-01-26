@@ -24,18 +24,24 @@ namespace cmk {
         static entry_id_t id_;
     };
 
-    template <typename T, T t, typename Enable = void>
-    struct entry_fn_impl_;
-
-    template <typename T, typename Message, member_fn_t<T, Message> Fn>
-    struct entry_fn_impl_<member_fn_t<T, Message>, Fn,
-        typename std::enable_if<is_message<Message>::value>::type>
+    template <auto Fn>
+    struct entry_fn_impl_
     {
         static void call_(void* self, message_ptr<>&& msg)
         {
-            auto* typed = static_cast<Message*>(msg.release());
-            message_ptr<Message> owned(typed);
-            (static_cast<T*>(self)->*Fn)(std::move(owned));
+            if constexpr (cmk::is_member_fn_t<decltype(Fn)>::value &&
+                cmk::is_message<
+                    typename cmk::extract_message<decltype(Fn)>::type>::value)
+            {
+                using message_t =
+                    typename cmk::extract_message<decltype(Fn)>::type;
+                using template_t =
+                    typename cmk::extract_message<decltype(Fn)>::template_t;
+
+                auto* typed = static_cast<message_t*>(msg.release());
+                message_ptr<message_t> owned(typed);
+                (static_cast<template_t*>(self)->*Fn)(std::move(owned));
+            }
         }
 
         static const entry_id_t& id_(void)
@@ -62,9 +68,8 @@ namespace cmk {
             }
             else
             {
-                CmiAbort(
-                    "constructor_caller_ called with a message pointer of "
-                    "non-message type");
+                CmiAbort("constructor_caller_ called with a message pointer of "
+                         "non-message type");
             }
         }
     };
@@ -75,10 +80,10 @@ namespace cmk {
         constructor_caller_<T, Arg>()(self, std::move(msg));
     }
 
-    template <typename T, T t>
+    template <auto Fn>
     entry_id_t entry(void)
     {
-        return entry_fn_impl_<T, t>::id_();
+        return entry_fn_impl_<Fn>::id_();
     }
 
     template <typename T, typename Message>
