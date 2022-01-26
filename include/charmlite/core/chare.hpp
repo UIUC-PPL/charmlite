@@ -50,11 +50,8 @@ namespace cmk {
         return CMK_ACCESS_SINGLETON(chare_table_)[id - 1];
     }
 
-    template <typename T, typename Enable = void>
-    struct property_setter_
-    {
-        void operator()(T*, const collection_index_t&, const chare_index_t&) {}
-    };
+    template <typename T>
+    struct property_setter_;
 
     template <typename T, typename Index>
     class chare;
@@ -133,19 +130,21 @@ namespace cmk {
         template <typename T, template <class> class Mapper, typename Enable>
         friend class collection_bridge_;
 
-        template <typename T, typename Enable>
+        template <typename T>
         friend struct property_setter_;
     };
 
     template <typename T>
-    struct property_setter_<T,
-        typename std::enable_if<std::is_base_of<chare_base_, T>::value>::type>
+    struct property_setter_
     {
         void operator()(
             T* t, const collection_index_t& id, const chare_index_t& idx)
         {
-            t->parent_ = id;
-            t->index_ = idx;
+            if constexpr (std::is_base_of<chare_base_, T>::value)
+            {
+                t->parent_ = id;
+                t->index_ = idx;
+            }
         }
     };
 

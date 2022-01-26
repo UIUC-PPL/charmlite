@@ -34,16 +34,14 @@ struct communicator : public cmk::chare<communicator, int>
         }
         else if ((it % nChares) == this->index())
         {
-            this->collection_proxy()
-                .broadcast<cmk::message, &communicator::recv_broadcast>(
-                    std::move(msg));
+            this->collection_proxy().broadcast<&communicator::recv_broadcast>(
+                std::move(msg));
         }
     }
 
     void recv_broadcast(cmk::message_ptr<>&& msg)
     {
-        auto cb = this->collection_proxy()
-                      .callback<cmk::message, &communicator::run>();
+        auto cb = this->collection_proxy().callback<&communicator::run>();
         this->element_proxy().contribute<cmk::message, cmk::nop>(
             std::move(msg), cb);
     }
@@ -92,7 +90,7 @@ int main(int argc, char** argv)
 
             auto startTime = CmiWallTimer();
 
-            arr.broadcast<cmk::message, &communicator::run>(
+            arr.broadcast<&communicator::run>(
                 cmk::make_message<cmk::message>());
             CthSuspend();
 

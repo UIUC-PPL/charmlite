@@ -293,9 +293,7 @@ public:
         bool converged = (max_error <= THRESHOLD);
         auto msg = cmk::make_message<completion_message>(converged);
 
-        auto cb =
-            this_proxy
-                .callback<completion_message, &jacobi::check_completion>();
+        auto cb = this_proxy.callback<&jacobi::check_completion>();
         this->element_proxy()
             .contribute<completion_message,
                 cmk::logical_and<typename completion_message::type>>(

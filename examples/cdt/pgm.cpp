@@ -44,7 +44,7 @@ struct test : cmk::chare<test, int>
             local->produce(this->collection(), CmiNumPes());
             // so send the messages
             cmk::group_proxy<test> col(this->collection());
-            col.broadcast<cmk::message, &test::consume>(std::move(msg));
+            col.broadcast<&test::consume>(std::move(msg));
         }
     }
 
@@ -73,8 +73,8 @@ struct test : cmk::chare<test, int>
                     this->collection(), cb);
                 // (each pe could start its own completion detection
                 //  but this checks that broadcasts are working!)
-                detector.broadcast<cmk::completion::detection_message,
-                    &cmk::completion::start_detection>(std::move(dm));
+                detector.broadcast<&cmk::completion::start_detection>(
+                    std::move(dm));
 
                 detection_started_ = true;
             }
@@ -106,8 +106,7 @@ int main(int argc, char** argv)
         for (auto it = 0; it < nIts; it++)
         {
             // send each element a "produce" message to start the process
-            elts.broadcast<cmk::message, &test::produce>(
-                cmk::make_message<cmk::message>());
+            elts.broadcast<&test::produce>(cmk::make_message<cmk::message>());
             // sleep until detection completes
             CthSuspend();
             CmiPrintf("main> iteration %d complete!\n", it + 1);

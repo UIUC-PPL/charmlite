@@ -119,21 +119,24 @@ namespace cmk {
             return element_proxy<T>(this->id_, view);
         }
 
-        template <typename Message, member_fn_t<T, Message> Fn>
-        cmk::callback<Message> callback(void) const
+        // template <typename Message, member_fn_t<T, Message> Fn>
+        template <auto Fn>
+        auto callback(void) const
         {
-            return cmk::callback<Message>(this->id_,
-                cmk::helper_::chare_bcast_root_,
-                entry<member_fn_t<T, Message>, Fn>());
+            using message_t = typename cmk::extract_message<decltype(Fn)>::type;
+
+            return cmk::callback<message_t>(this->id_,
+                cmk::helper_::chare_bcast_root_, entry<decltype(Fn), Fn>());
         }
 
-        template <typename Message, member_fn_t<T, Message> Fn>
-        void broadcast(message_ptr<Message>&& msg) const
+        // template <typename Message, member_fn_t<T, Message> Fn>
+        template <auto Fn>
+        void broadcast(
+            typename cmk::extract_message<decltype(Fn)>::ptr_type&& msg) const
         {
             // send a message to the broadcast root
-            new (&msg->dst_)
-                destination(this->id_, cmk::helper_::chare_bcast_root_,
-                    entry<member_fn_t<T, Message>, Fn>());
+            new (&msg->dst_) destination(this->id_,
+                cmk::helper_::chare_bcast_root_, entry<decltype(Fn), Fn>());
             cmk::send(std::move(msg));
         }
 

@@ -61,8 +61,7 @@ int main(int argc, char** argv)
             }
         }
         // then send 'em a buncha' messages
-        arr.broadcast<test_message, &foo::bar>(
-            cmk::make_message<test_message>(n));
+        arr.broadcast<&foo::bar>(cmk::make_message<test_message>(n));
         // necessary to enable collective communication
         arr.done_inserting();
     }

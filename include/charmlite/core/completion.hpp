@@ -91,9 +91,8 @@ namespace cmk {
             else
             {
                 // contribute to the all_reduce with other participants
-                auto cb =
-                    this->collection_proxy()
-                        .callback<count_message, &completion::receive_count_>();
+                auto cb = this->collection_proxy()
+                              .callback<&completion::receive_count_>();
                 auto count = make_message<count_message>(idx, status.lcount);
                 this->element_proxy()
                     .contribute<count_message,
