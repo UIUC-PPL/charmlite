@@ -20,6 +20,11 @@ struct invoker : cmk::chare<invoker, int>
             CmiPrintf("%d,", elem);
         }
         CmiPrintf("}\n");
+
+        auto cb =
+            cmk::callback<cmk::message>::construct<cmk::exit>(cmk::all::pes);
+        this->element_proxy().contribute<cmk::nop<>>(
+            cmk::make_message<cmk::message>(), cb);
     }
 };
 
