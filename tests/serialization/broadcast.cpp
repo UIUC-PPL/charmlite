@@ -12,10 +12,14 @@ struct invoker : cmk::chare<invoker, int>
         CmiPrintf("Constructor called on PE%d!\n", CmiMyPe());
     }
 
-    void invoke(int arg0, double arg1)
+    void invoke(int arg0, std::vector<int>& arg1)
     {
-        std::cout << arg0 << std::endl;
-        std::cout << arg1 << std::endl;
+        CmiPrintf("From PE%d, got input: %d, {", CmiMyPe(), arg0);
+        for (int elem : arg1)
+        {
+            CmiPrintf("%d,", elem);
+        }
+        CmiPrintf("}\n");
     }
 };
 
@@ -26,7 +30,7 @@ int main(int argc, char* argv[])
     if (CmiMyNode() == 0)
     {
         int arg0 = 42;
-        double arg1 = 3.14;
+        std::vector<int> arg1{1, 2, 3};
 
         // create a collection
         auto arr = cmk::collection_proxy<invoker>::construct();

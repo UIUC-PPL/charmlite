@@ -52,14 +52,12 @@ namespace cmk {
             args_parser(sizer_, std::forward<Args_>(args)...);
             int size = sizer_.size();
 
-            CmiPrintf("Size of marshalled args: %d", size);
-
-            message_ptr<marshall_msg<marshall_args>> msg =
-                make_message<marshall_msg<marshall_args>>(
-                    sizeof(message) + size);
+            message_ptr<marshall_msg<marshall_args>> msg(
+                new (sizeof(cmk::message) + size)
+                    marshall_msg<marshall_args>(sizeof(cmk::message) + size));
 
             int msg_offset = sizeof(message);
-            PUP::toMem pack_to_mem((void*) (msg.get() + msg_offset));
+            PUP::toMem pack_to_mem((void*) ((char*) (msg.get()) + msg_offset));
             args_parser(pack_to_mem, std::forward<Args_>(args)...);
 
             return msg;

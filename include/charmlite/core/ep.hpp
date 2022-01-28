@@ -52,37 +52,35 @@ namespace cmk {
                     std::tuple_size<std::decay_t<Tuple>>::value>());
         }
 
-        template <typename Serializer, typename T1, typename... Ts>
+        template <typename T1, typename... Ts>
         static void args_unfolder_impl_helper(
-            Serializer&& serializer, T1&& t1, Ts&&... ts)
+            PUP::fromMem& serializer, T1&& t1, Ts&&... ts)
         {
             serializer | (typename std::decay_t<T1>&) t1;
 
+            args_unfolder_impl_helper(serializer, std::forward<Ts>(ts)...);
+        }
+
+        template <typename T1>
+        static void args_unfolder_impl_helper(PUP::fromMem& serializer, T1&& t1)
+        {
+            serializer | (typename std::decay_t<T1>&) t1;
+        }
+
+        template <typename Tuple, std::size_t... Indices>
+        static void args_unfolder_impl(PUP::fromMem& serializer, Tuple&& t,
+            std::index_sequence<Indices...>)
+        {
             args_unfolder_impl_helper(
-                std::forward<Serializer>(serializer), std::forward<Ts>(ts)...);
+                serializer, std::get<Indices>(std::forward<Tuple>(t))...);
         }
 
-        template <typename Serializer, typename T1>
-        static void args_unfolder_impl_helper(Serializer&& serializer, T1&& t1)
+        template <typename Tuple>
+        static void args_unfolder(PUP::fromMem& serializer, Tuple&& ts)
         {
-            serializer | (typename std::decay_t<T1>&) t1;
-        }
+            using tuple_s = std::tuple_size<typename std::decay_t<Tuple>>;
 
-        template <typename Serializer, typename Tuple, std::size_t... Indices>
-        static void args_unfolder_impl(
-            Serializer&& serializer, Tuple&& t, std::index_sequence<Indices...>)
-        {
-            args_unfolder_impl_helper(std::forward<Serializer>(serializer),
-                std::get<Indices>(std::forward<Tuple>(t))...);
-        }
-
-        template <typename Serializer, typename Tuple>
-        static void args_unfolder(Serializer&& serializer, Tuple&& ts)
-        {
-            using tuple_s = std::tuple_size<typename std::decay<Tuple>::type>;
-
-            args_unfolder_impl(std::forward<Serializer>(serializer),
-                std::forward<Tuple>(ts),
+            args_unfolder_impl(serializer, std::forward<Tuple>(ts),
                 std::make_index_sequence<tuple_s::value>());
         }
 
@@ -120,27 +118,14 @@ namespace cmk {
                 tuple_t t{};
 
                 // Unpack to tuple_t
-                PUP::fromMem unpacker((char*) (typed) + sizeof(message));
+                PUP::fromMem unpacker(((char*) (typed)) + sizeof(message));
+
                 args_unfolder(unpacker, t);
 
                 func_invoker(self, t);
             }
             else
             {
-                using message_t =
-                    typename cmk::generate_marshall_msg<decltype(Fn)>::type;
-                using tuple_t = typename cmk::generate_marshall_msg<
-                    decltype(Fn)>::tuple_type;
-
-                auto* typed = static_cast<message_t*>(msg.release());
-                tuple_t t{};
-
-                // Unpack to tuple_t
-                PUP::fromMem unpacker((char*) (typed) + sizeof(message));
-                args_unfolder(unpacker, t);
-
-                func_invoker(self, t);
-
                 CmiAbort("no matching call to compatible functiono call.");
             }
         }
