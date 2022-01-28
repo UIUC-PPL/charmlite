@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
         auto n = 8 * CmiNumPes();
         for (auto i = 0; i < n; i++)
         {
-            arr[i].insert<int, double>(arg0, arg1);
+            arr[i].insert(arg0, arg1);
         }
     }
 

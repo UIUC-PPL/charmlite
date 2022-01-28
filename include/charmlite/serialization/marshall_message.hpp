@@ -3,6 +3,8 @@
 
 #include <charmlite/core/message.hpp>
 
+#include <charmlite/utilities/traits/serialization.hpp>
+
 #include <pup.h>
 #include <pup_stl.h>
 
@@ -15,28 +17,6 @@ namespace cmk {
     template <typename... Args>
     struct marshall_msg : cmk::message
     {
-    private:
-        template <typename Serializer, typename Arg0, typename... Args_>
-        static void args_parser(
-            Serializer&& serializer, Arg0&& arg0, Args_&&... args)
-        {
-            serializer | (typename std::decay_t<Arg0>&) arg0;
-            args_parser(std::forward<Serializer>(serializer),
-                std::forward<Args_>(args)...);
-        }
-
-        template <typename Serializer, typename Arg0>
-        static void args_parser(Serializer&& serializer, Arg0&& arg0)
-        {
-            serializer | (typename std::decay_t<Arg0>&) arg0;
-        }
-
-        template <typename Serializer>
-        static void args_parser(Serializer&&)
-        {
-        }
-
-    public:
         using marshall_args = std::tuple<std::decay_t<Args>...>;
 
         marshall_msg(int size)
@@ -49,7 +29,7 @@ namespace cmk {
         static message_ptr<marshall_msg<marshall_args>> pack(Args_&&... args)
         {
             PUP::sizer sizer_;
-            args_parser(sizer_, std::forward<Args_>(args)...);
+            impl::args_parser(sizer_, std::forward<Args_>(args)...);
             int size = sizer_.size();
 
             message_ptr<marshall_msg<marshall_args>> msg(
@@ -58,7 +38,7 @@ namespace cmk {
 
             int msg_offset = sizeof(message);
             PUP::toMem pack_to_mem((void*) ((char*) (msg.get()) + msg_offset));
-            args_parser(pack_to_mem, std::forward<Args_>(args)...);
+            impl::args_parser(pack_to_mem, std::forward<Args_>(args)...);
 
             return msg;
         }

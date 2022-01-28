@@ -52,38 +52,6 @@ namespace cmk {
                     std::tuple_size<std::decay_t<Tuple>>::value>());
         }
 
-        template <typename T1, typename... Ts>
-        static void args_unfolder_impl_helper(
-            PUP::fromMem& serializer, T1&& t1, Ts&&... ts)
-        {
-            serializer | (typename std::decay_t<T1>&) t1;
-
-            args_unfolder_impl_helper(serializer, std::forward<Ts>(ts)...);
-        }
-
-        template <typename T1>
-        static void args_unfolder_impl_helper(PUP::fromMem& serializer, T1&& t1)
-        {
-            serializer | (typename std::decay_t<T1>&) t1;
-        }
-
-        template <typename Tuple, std::size_t... Indices>
-        static void args_unfolder_impl(PUP::fromMem& serializer, Tuple&& t,
-            std::index_sequence<Indices...>)
-        {
-            args_unfolder_impl_helper(
-                serializer, std::get<Indices>(std::forward<Tuple>(t))...);
-        }
-
-        template <typename Tuple>
-        static void args_unfolder(PUP::fromMem& serializer, Tuple&& ts)
-        {
-            using tuple_s = std::tuple_size<typename std::decay_t<Tuple>>;
-
-            args_unfolder_impl(serializer, std::forward<Tuple>(ts),
-                std::make_index_sequence<tuple_s::value>());
-        }
-
     public:
         static void call_(void* self, message_ptr<>&& msg)
         {
@@ -120,7 +88,7 @@ namespace cmk {
                 // Unpack to tuple_t
                 PUP::fromMem unpacker(((char*) (typed)) + sizeof(message));
 
-                args_unfolder(unpacker, t);
+                impl::args_unfolder(unpacker, t);
 
                 func_invoker(self, t);
             }
@@ -145,7 +113,12 @@ namespace cmk {
             {
                 using Message = cmk::get_message_t<Argument>;
                 auto* typed = static_cast<Message*>(msg.release());
+
                 message_ptr<Message> owned(typed);
+
+                using tuple_t = marshall_args_t<Message>;
+                tuple_t t{};
+
                 new (static_cast<Chare*>(self)) Chare(std::move(owned));
             }
             else if constexpr (cmk::message_compatibility_v<Argument>)

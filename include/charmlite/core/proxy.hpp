@@ -88,7 +88,7 @@ namespace cmk {
         void insert(message_ptr<Message>&& msg, int pe = -1) const;
 
         template <typename... Args>
-        void insert(Args... args, int pe = -1) const;
+        void insert(Args... args) const;
 
         void insert(int pe = -1) const;
 

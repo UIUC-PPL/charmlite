@@ -2,6 +2,7 @@
 #define CHARMLITE_UTILITIES_TRAITS_HPP
 
 #include <charmlite/utilities/traits/message.hpp>
+#include <charmlite/utilities/traits/serialization.hpp>
 
 #include <charmlite/serialization/marshall_message.hpp>
 
@@ -96,6 +97,18 @@ namespace cmk {
     template <typename Argument>
     inline constexpr bool is_marshall_type_v =
         is_marshall_type<Argument>::value;
+
+    template <typename T>
+    struct marshall_args;
+
+    template <typename... Args>
+    struct marshall_args<marshall_msg<Args...>>
+    {
+        using tuple_type = std::tuple<std::decay_t<Args>...>;
+    };
+
+    template <typename T>
+    using marshall_args_t = typename marshall_args<T>::type;
 
 }    // namespace cmk
 

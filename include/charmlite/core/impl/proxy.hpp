@@ -23,23 +23,18 @@ namespace cmk {
             cmk::send(std::move(msg), pe);
     }
 
-    // template <typename T>
-    // template <typename... Args>
-    // void element_proxy<T>::insert(Args... args, int pe) const
-    // {
-    //     CmiAssertMsg(pe < CmiNumPes(), "invalid pe value passed!");
+    template <typename T>
+    template <typename... Args>
+    void element_proxy<T>::insert(Args... args) const
+    {
+        auto msg =
+            cmk::marshall_msg<Args...>::pack(std::forward<Args>(args)...);
 
-    //     auto msg =
-    //         cmk::marshall_msg<Args...>::pack(std::forward<Args>(args)...);
-
-    //     new (&(msg->dst_)) destination(
-    //         this->id_, this->idx_, constructor<T, decltype(msg)&&>());
-    //     cmk::system_detector_()->produce(this->id_, 1);
-    //     if (pe < 0)
-    //         cmk::send(std::move(msg));
-    //     else
-    //         cmk::send(std::move(msg), pe);
-    // }
+        new (&(msg->dst_)) destination(
+            this->id_, this->idx_, constructor<T, decltype(msg)&&>());
+        cmk::system_detector_()->produce(this->id_, 1);
+        cmk::send(std::move(msg));
+    }
 
     template <typename T>
     void element_proxy<T>::insert(int pe) const
