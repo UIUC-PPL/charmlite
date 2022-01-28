@@ -4,6 +4,8 @@
 #include <charmlite/core/collection.hpp>
 #include <charmlite/core/proxy.hpp>
 
+#include <charmlite/serialization/marshall_message.hpp>
+
 namespace cmk {
 
     // Element Proxy member functions
@@ -20,6 +22,24 @@ namespace cmk {
         else
             cmk::send(std::move(msg), pe);
     }
+
+    // template <typename T>
+    // template <typename... Args>
+    // void element_proxy<T>::insert(Args... args, int pe) const
+    // {
+    //     CmiAssertMsg(pe < CmiNumPes(), "invalid pe value passed!");
+
+    //     auto msg =
+    //         cmk::marshall_msg<Args...>::pack(std::forward<Args>(args)...);
+
+    //     new (&(msg->dst_)) destination(
+    //         this->id_, this->idx_, constructor<T, decltype(msg)&&>());
+    //     cmk::system_detector_()->produce(this->id_, 1);
+    //     if (pe < 0)
+    //         cmk::send(std::move(msg));
+    //     else
+    //         cmk::send(std::move(msg), pe);
+    // }
 
     template <typename T>
     void element_proxy<T>::insert(int pe) const
@@ -40,6 +60,18 @@ namespace cmk {
     void element_proxy<T>::send(
         typename cmk::extract_message<decltype(Fn)>::ptr_type&& msg) const
     {
+        new (&(msg->dst_)) destination(this->id_, this->idx_, entry<Fn>());
+        msg->sender_pe_ = CmiMyPe();
+        cmk::send(std::move(msg));
+    }
+
+    template <typename T>
+    template <auto Fn, typename... Args>
+    void element_proxy<T>::send(Args&&... args) const
+    {
+        auto msg =
+            cmk::marshall_msg<Args...>::pack(std::forward<Args>(args)...);
+
         new (&(msg->dst_)) destination(this->id_, this->idx_, entry<Fn>());
         msg->sender_pe_ = CmiMyPe();
         cmk::send(std::move(msg));

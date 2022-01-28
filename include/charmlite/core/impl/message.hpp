@@ -59,7 +59,7 @@ namespace cmk {
     {
         return this->flags_[createhere_];
     }
- 
+
     inline message::flag_type message::is_forwarded(void)
     {
         return this->flags_[is_forwarded_];
@@ -69,7 +69,7 @@ namespace cmk {
     {
         return this->flags_[is_forwarded_];
     }
- 
+
     inline message::flag_type message::has_continuation(void)
     {
         return this->flags_[has_continuation_];

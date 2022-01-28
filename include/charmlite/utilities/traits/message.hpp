@@ -103,6 +103,9 @@ namespace cmk {
     template <typename T, typename Message>
     using member_fn_t = void (T::*)(cmk::message_ptr<Message>&&);
 
+    template <typename T, typename... Args>
+    using member_fn_args_t = void (T::*)(Args...);
+
     using message_buffer_t = std::deque<message_ptr<message>>;
     using collection_buffer_t = std::unordered_map<collection_index_t,
         message_buffer_t, collection_index_hasher_>;
