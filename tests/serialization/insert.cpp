@@ -7,10 +7,19 @@
 
 struct invoker : cmk::chare<invoker, int>
 {
-    invoker(int arg0, double arg1)
+    invoker(double arg0, std::vector<int> arg1)
     {
-        std::cout << arg0 << std::endl;
-        std::cout << arg1 << std::endl;
+        CmiPrintf("From PE%d, constructor input: %f, {", CmiMyPe(), arg0);
+        for (int elem : arg1)
+        {
+            CmiPrintf("%d,", elem);
+        }
+        CmiPrintf("}\n");
+
+        auto cb =
+            cmk::callback<cmk::message>::construct<cmk::exit>(cmk::all::pes);
+        this->element_proxy().contribute<cmk::nop<>>(
+            cmk::make_message<cmk::message>(), cb);
     }
 };
 
@@ -20,8 +29,8 @@ int main(int argc, char* argv[])
 
     if (CmiMyNode() == 0)
     {
-        int arg0 = 42;
-        double arg1 = 3.14;
+        double arg0 = 3.14;
+        std::vector arg1{-1, 0, 1, 42};
 
         // create a collection
         auto arr = cmk::collection_proxy<invoker>::construct();
@@ -31,6 +40,8 @@ int main(int argc, char* argv[])
         {
             arr[i].insert(arg0, arg1);
         }
+
+        arr.done_inserting();
     }
 
     cmk::finalize();

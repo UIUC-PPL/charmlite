@@ -26,15 +26,17 @@ namespace cmk {
         }
 
         template <typename... Args_>
-        static message_ptr<marshall_msg<marshall_args>> pack(Args_&&... args)
+        static message_ptr<marshall_msg<std::decay_t<Args_>...>> pack(
+            Args_&&... args)
         {
             PUP::sizer sizer_;
             impl::args_parser(sizer_, std::forward<Args_>(args)...);
             int size = sizer_.size();
 
-            message_ptr<marshall_msg<marshall_args>> msg(
+            message_ptr<marshall_msg<std::decay_t<Args_>...>> msg(
                 new (sizeof(cmk::message) + size)
-                    marshall_msg<marshall_args>(sizeof(cmk::message) + size));
+                    marshall_msg<std::decay_t<Args_>...>(
+                        sizeof(cmk::message) + size));
 
             int msg_offset = sizeof(message);
             PUP::toMem pack_to_mem((void*) ((char*) (msg.get()) + msg_offset));

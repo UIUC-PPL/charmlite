@@ -2,8 +2,8 @@ add_custom_target(serialization)
 
 set(TESTS
     broadcast
-    # insert
-    # send
+    insert
+    send
 )
 
 foreach(TEST ${TESTS})

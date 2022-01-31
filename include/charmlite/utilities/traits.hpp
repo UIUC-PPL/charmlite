@@ -90,7 +90,7 @@ namespace cmk {
     };
 
     template <typename... Args>
-    struct is_marshall_type<marshall_msg<Args...>> : std::true_type
+    struct is_marshall_type<message_ptr<marshall_msg<Args...>>> : std::true_type
     {
     };
 
@@ -108,7 +108,7 @@ namespace cmk {
     };
 
     template <typename T>
-    using marshall_args_t = typename marshall_args<T>::type;
+    using marshall_args_t = typename marshall_args<T>::tuple_type;
 
 }    // namespace cmk
 

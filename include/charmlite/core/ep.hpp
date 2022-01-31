@@ -5,6 +5,9 @@
 
 #include <charmlite/utilities/traits.hpp>
 
+#include <typeindex>
+#include <typeinfo>
+
 namespace cmk {
     inline const entry_record_* record_for(entry_id_t id)
     {
@@ -107,19 +110,46 @@ namespace cmk {
     template <typename Chare, typename Argument>
     struct constructor_caller_
     {
+    private:
+        template <typename... Args_>
+        static void func_invoker_impl_helper(void* self, Args_&&... args)
+        {
+            new (static_cast<Chare*>(self)) Chare(std::forward<Args_>(args)...);
+        }
+
+        template <typename Tuple, std::size_t... Indices>
+        static void func_invoker_impl(
+            void* self, Tuple&& t, std::index_sequence<Indices...>)
+        {
+            func_invoker_impl_helper(
+                self, std::get<Indices>(std::forward<Tuple>(t))...);
+        }
+
+        template <typename Tuple>
+        static void func_invoker(void* self, Tuple&& t)
+        {
+            func_invoker_impl(self, std::forward<Tuple>(t),
+                std::make_index_sequence<
+                    std::tuple_size<std::decay_t<Tuple>>::value>());
+        }
+
+    public:
         auto operator()(void* self, message_ptr<>&& msg)
         {
-            if constexpr (cmk::is_marshall_type_v<Argument>)
+            if constexpr (cmk::is_marshall_type_v<std::decay_t<Argument>>)
             {
                 using Message = cmk::get_message_t<Argument>;
                 auto* typed = static_cast<Message*>(msg.release());
-
-                message_ptr<Message> owned(typed);
-
                 using tuple_t = marshall_args_t<Message>;
+
                 tuple_t t{};
 
-                new (static_cast<Chare*>(self)) Chare(std::move(owned));
+                // Unpack to tuple_t
+                PUP::fromMem unpacker(((char*) (typed)) + sizeof(message));
+
+                impl::args_unfolder(unpacker, t);
+
+                func_invoker(self, t);
             }
             else if constexpr (cmk::message_compatibility_v<Argument>)
             {
