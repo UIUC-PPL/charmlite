@@ -8,7 +8,7 @@
 
 struct invoker : cmk::chare<invoker, int>
 {
-    invoker(double arg0, std::vector<int> arg1)
+    invoker(double arg0, const std::vector<int>& arg1)
     {
         CmiPrintf("From PE%d, constructor input: %f, {", CmiMyPe(), arg0);
         for (int elem : arg1)
