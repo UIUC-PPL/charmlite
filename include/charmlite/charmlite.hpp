@@ -8,6 +8,8 @@
 #include <charmlite/utilities/math.hpp>
 #include <charmlite/utilities/traits.hpp>
 
+#include <charmlite/serialization/serialization.hpp>
+
 #if CMK_SMP
 extern int userDrivenMode;
 extern int CharmLibInterOperate;

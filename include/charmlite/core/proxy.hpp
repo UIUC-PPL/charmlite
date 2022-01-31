@@ -87,12 +87,19 @@ namespace cmk {
         template <typename Message>
         void insert(message_ptr<Message>&& msg, int pe = -1) const;
 
+        template <typename... Args>
+        void insert(Args... args) const;
+
         void insert(int pe = -1) const;
 
         // template <typename Message, member_fn_t<T, Message> Fn>
         template <auto Fn>
         void send(
             typename cmk::extract_message<decltype(Fn)>::ptr_type&& msg) const;
+
+        // Unmarshalled message types
+        template <auto Fn, typename... Args>
+        void send(Args&&... args) const;
 
         // template <typename Message, member_fn_t<T, Message> Fn>
         template <auto Fn>
@@ -143,6 +150,18 @@ namespace cmk {
         void broadcast(
             typename cmk::extract_message<decltype(Fn)>::ptr_type&& msg) const
         {
+            // send a message to the broadcast root
+            new (&msg->dst_) destination(
+                this->id_, cmk::helper_::chare_bcast_root_, entry<Fn>());
+            cmk::send(std::move(msg));
+        }
+
+        template <auto Fn, typename... Args>
+        void broadcast(Args&&... args) const
+        {
+            auto msg =
+                cmk::marshall_msg<Args...>::pack(std::forward<Args>(args)...);
+
             // send a message to the broadcast root
             new (&msg->dst_) destination(
                 this->id_, cmk::helper_::chare_bcast_root_, entry<Fn>());
