@@ -84,13 +84,17 @@ namespace cmk {
 
     struct reducer_
     {
+        collective_id_t redn;
         std::vector<chare_index_t> upstream;
         std::vector<chare_index_t> downstream;
         std::vector<message_ptr<message>> received;
 
-        reducer_(const std::vector<chare_index_t>& up,
+        reducer_(
+            collective_id_t redn_,
+            const std::vector<chare_index_t>& up,
             const std::vector<chare_index_t>& down)
-          : upstream(up)
+          : redn(redn_)
+          , upstream(up)
           , downstream(down)
         {
         }

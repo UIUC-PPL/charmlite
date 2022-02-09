@@ -11,6 +11,7 @@
 #include <charmlite/utilities/traits.hpp>
 
 #include <functional>
+#include <optional>
 
 namespace cmk {
     class collection_base_
@@ -30,7 +31,7 @@ namespace cmk {
 
         virtual void* lookup(const chare_index_t&) = 0;
         virtual void deliver(message_ptr<>&& msg, bool immediate) = 0;
-        virtual void contribute(message_ptr<>&& msg) = 0;
+        virtual void contribute(message_ptr<>&& msg, std::optional<collective_id_t> tag) = 0;
 
         template <typename T>
         inline T* lookup(const chare_index_t& idx)

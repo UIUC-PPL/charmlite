@@ -266,14 +266,14 @@ namespace cmk {
             }
         }
 
-        virtual void contribute(message_ptr<>&& msg) override
+        virtual void contribute(message_ptr<>&& msg, std::optional<collective_id_t> tag) override
         {
             auto& ep = msg->dst_.endpoint();
             auto& idx = ep.chare;
             auto* obj = static_cast<chare_base_*>(this->lookup(idx));
             CmiAssert(msg->has_combiner());
             // stamp the message with a sequence number
-            ep.collective = next_collective_(obj->last_redn_);
+            ep.collective = tag ? *tag : next_collective_(obj->last_redn_);
             this->handle_reduction_message_(obj, std::move(msg));
         }
 
@@ -294,6 +294,7 @@ namespace cmk {
                 return;
             }
             auto& reducer = search->second;
+            CmiAssert(redn == reducer.redn);
             reducer.received.emplace_back(std::move(msg));
             // when we've received all expected messages
             if (reducer.ready())
@@ -381,15 +382,14 @@ namespace cmk {
             auto find = reducers.find(redn);
             if (find == std::end(reducers))
             {
-                auto& idx = obj->index_;
                 // construct using most up-to-date knowledge of spanning tree
                 CmiAssert(obj->association_ && obj->association_->valid_parent);
                 const auto& up = obj->association_->children;
                 const auto& down = obj->association_->parent;
                 // CmiPrintf("(%u:%u)@%d> i have %lu children\n", this->id_.pe_, this->id_.id_, CmiMyPe(), up.size());
                 auto ins = reducers.emplace(std::piecewise_construct,
-                    std::forward_as_tuple(idx),
-                    std::forward_as_tuple(up, down));
+                    std::forward_as_tuple(redn),
+                    std::forward_as_tuple(redn, up, down));
                 find = ins.first;
             }
             return find;
