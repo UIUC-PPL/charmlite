@@ -3,4 +3,6 @@
 
 #include <charmlite/serialization/marshall_message.hpp>
 
+PUPbytes(cmk::collection_index_t);
+
 #endif

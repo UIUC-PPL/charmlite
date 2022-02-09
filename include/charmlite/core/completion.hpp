@@ -21,6 +21,7 @@ namespace cmk {
         {
             message_ptr<detection_message> msg;
             std::int64_t lcount;
+            collective_id_t tag;
             bool complete;
 
             status(message_ptr<detection_message>&& msg_)
@@ -45,6 +46,7 @@ namespace cmk {
             // used by the add operator
             count& operator+=(const count& other)
             {
+                CmiEnforce(this->target == other.target);
                 this->gcount += other.gcount;
                 return *this;
             }
@@ -57,12 +59,15 @@ namespace cmk {
         // obtain the completion status of a collection
         // (setting a callback message if one isn't present)
         status& get_status(
-            collection_index_t idx, message_ptr<detection_message>& msg)
+            collection_index_t const& idx, message_ptr<detection_message>& msg)
         {
             auto find = this->statii.find(idx);
             if (find == std::end(this->statii))
             {
                 find = this->statii.emplace(idx, std::move(msg)).first;
+                // TODO ( this is FRAGILE -- it assumes no hash collisions which
+                //        simply isn't a realistic assumption at scale! )
+                find->second.tag = compress(idx);
             }
             else if (msg)
             {
@@ -96,7 +101,7 @@ namespace cmk {
                 auto count = make_message<count_message>(idx, status.lcount);
                 this->element_proxy()
                     .contribute<&cmk::add<typename count_message::type>>(
-                        std::move(count), cb);
+                        std::move(count), cb, status.tag);
             }
         }
 
@@ -118,11 +123,23 @@ namespace cmk {
         // and update the status accordingly
         void receive_count_(message_ptr<count_message>&& msg)
         {
-            auto& gcount = msg->value();
+            auto& val = msg->value();
+            auto& target_idx = val.target;
             message_ptr<detection_message> nil;
-            auto& status = this->get_status(gcount.target, nil);
-            status.complete = (gcount.gcount == 0);
+            auto& status = this->get_status(target_idx, nil);
+            status.complete = (val.gcount == 0);
+            // this may occur if there's a hash collision during 
+            // dectection when there are multiple chare arrays
+            CmiAssertMsg((bool)status.msg, "received orphan count!");
             this->start_detection(std::move(status.msg));
+        }
+
+        static collective_id_t compress(collection_index_t const& idx) {
+            std::hash<int> hasher;
+            auto hash = (std::size_t)9;
+            hash = hash * 15 + hasher(idx.pe_);
+            hash = hash * 15 + hasher(idx.id_);
+            return hash;
         }
     };
 

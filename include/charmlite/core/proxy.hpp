@@ -7,7 +7,9 @@
 #include <charmlite/core/ep.hpp>
 #include <charmlite/core/locmgr.hpp>
 
+#include <charmlite/serialization/serialization.hpp>
 #include <charmlite/utilities/traits.hpp>
+#include <optional>
 
 namespace cmk {
 
@@ -111,8 +113,8 @@ namespace cmk {
         void contribute(
             typename cmk::extract_message<decltype(Combiner)>::ptr_type&& msg,
             const cmk::callback<
-                typename cmk::extract_message<decltype(Combiner)>::type>& cb)
-            const;
+                typename cmk::extract_message<decltype(Combiner)>::type>& cb,
+            std::optional<cmk::collective_id_t> tag = std::nullopt) const;
     };
 
     template <typename T>
@@ -173,6 +175,11 @@ namespace cmk {
             return this->id_;
         }
 
+        void pup(PUP::er& p)
+        {
+            p | this->id_;
+        }
+
     protected:
         static void next_index_(collection_index_t& idx)
         {
@@ -192,6 +199,11 @@ namespace cmk {
 
         collection_proxy(const collection_index_t& id)
           : base_type(id)
+        {
+        }
+
+        collection_proxy(void)
+          : base_type({0, 0})
         {
         }
 

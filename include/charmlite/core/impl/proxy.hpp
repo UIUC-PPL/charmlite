@@ -85,7 +85,8 @@ namespace cmk {
     void element_proxy<T>::contribute(
         typename cmk::extract_message<decltype(Combiner)>::ptr_type&& msg,
         const cmk::callback<
-            typename cmk::extract_message<decltype(Combiner)>::type>& cb) const
+            typename cmk::extract_message<decltype(Combiner)>::type>& cb,
+        std::optional<cmk::collective_id_t> tag) const
     {
         // set the contribution's combiner
         msg->has_combiner() = true;
@@ -99,7 +100,7 @@ namespace cmk {
         cont = true;
         cb.imprint(*(msg->continuation()));
         // send the contribution...
-        cmk::lookup(this->id_)->contribute(std::move(msg));
+        cmk::lookup(this->id_)->contribute(std::move(msg), tag);
     }
 
     // Collection proxy member functions
