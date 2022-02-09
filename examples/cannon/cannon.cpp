@@ -1,9 +1,9 @@
-/* charmlite demo
+/* cannon's matrix-matrix multiplication in charmlite
  *
- * author: aditya bhosale <adityapb@illinois.edu>
+ * author: j. szaday <szaday2@illinois.edu>
  *
- * based on jacobi2d implementation in charm++
- * https://github.com/UIUC-PPL/charm/tree/main/examples/charm%2B%2B/jacobi2d-2d-decomposition
+ * based on matmul in charm++:
+ * https://github.com/UIUC-PPL/charm/tree/main/examples/charm%2B%2B/matmul
  */
 
 #include <charmlite/charmlite.hpp>
@@ -139,27 +139,24 @@ private:
         for (auto block = 0; block < self->nb_per_dim; block += 1)
         {
             auto& buf = self->blocks[block];
-            if (buf.size() < 2)
+            // sleep until we've received all values
+            while (buf.size() < 2)
             {
-                // go to sleep since we haven't received all values
                 CthSuspend();
             }
-            else
-            {
-                // force block_a to be at index 0
-                if (buf[1]->is_a)
-                {
-                    std::swap(buf[0], buf[1]);
-                }
-                // do a quick sanity check
-                CmiEnforce(buf[0]->is_a && (buf.size() == 2));
-            }
-
+            CmiAssert(buf.size() == 2);
             auto& block_a = buf[0];
             auto& block_b = buf[1];
+            CmiAssert(block_a && block_b);
+            // we got the messages in the ``wrong" order
+            if (block_b->is_a)
+            {
+                block_b.swap(block_a);
+            }
+            // run the matrix-matrix multiplication kernel
             kernel_(self->block_size, self->block_size, self->block_size,
                 block_a->data, block_b->data, self->data);
-
+            // if this isn't the last iteration...
             if ((block + 1) < self->nb_per_dim)
             {
                 // forward the block to a
@@ -174,7 +171,7 @@ private:
                     .send<&block::receive_data>(std::move(block_b));
             }
         }
-
+        // we're about to be inactive...
         self->active = nullptr;
         self->element_proxy().contribute<cmk::nop<>>(
             cmk::make_message<cmk::message>(),
@@ -195,19 +192,29 @@ int main(int argc, char** argv)
     cmk::initialize(argc, argv);
     if (CmiMyNode() == 0)
     {
-        auto alpha = 1.0l;
-        auto np = CmiNumPes();
-        decltype(np) np_per_dim = sqrt((double) np);
-        auto nb_per_dim = ((np > 1) && (np_per_dim == 1)) ? 2 : np_per_dim;
-        index_type array_shape = {nb_per_dim, nb_per_dim};
         auto grid_size = (argc > 1) ? atoi(argv[1]) : 128;
+        auto np = CmiNumPes();
+
+        int nb_per_dim;
+        if (argc > 2)
+        {
+            nb_per_dim = atoi(argv[2]);
+        }
+        else
+        {
+            decltype(np) np_per_dim = sqrt((double) np);
+            nb_per_dim = ((np > 1) && (np_per_dim == 1)) ? 2 : np_per_dim;
+        }
+
         CmiEnforce(grid_size % nb_per_dim == 0);
         auto block_size = grid_size / nb_per_dim;
-        index_type block_shape = {block_size, block_size};
+
         CmiPrintf("main> matmul with %d x %d chare-array on %d pes\n",
             nb_per_dim, nb_per_dim, np);
         CmiPrintf(
             "main> each chare has %d x %d values\n", block_size, block_size);
+
+        index_type array_shape = {nb_per_dim, nb_per_dim};
         cmk::collection_options opts(array_shape);
         auto msg = cmk::make_message<block::construct_message>(
             nb_per_dim, block_size, true);
@@ -217,6 +224,7 @@ int main(int argc, char** argv)
             msg->clone<block::construct_message>(), opts);
         std::get<2>(msg->value()) = false;    // do not randomize c's value
         auto c = cmk::collection_proxy<block>::construct(std::move(msg), opts);
+
         start_time = CmiWallTimer();
         a.broadcast<&block::send_data>(c, true);
         b.broadcast<&block::send_data>(c, false);

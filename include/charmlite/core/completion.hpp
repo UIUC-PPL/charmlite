@@ -128,10 +128,10 @@ namespace cmk {
             message_ptr<detection_message> nil;
             auto& status = this->get_status(target_idx, nil);
             status.complete = (val.gcount == 0);
-            // if ((bool)status.msg) {
-                CmiEnforce((bool)status.msg);
-                this->start_detection(std::move(status.msg));
-            // }
+            // this may occur if there's a hash collision during 
+            // dectection when there are multiple chare arrays
+            CmiAssertMsg((bool)status.msg, "received orphan count!");
+            this->start_detection(std::move(status.msg));
         }
 
         static collective_id_t compress(collection_index_t const& idx) {
