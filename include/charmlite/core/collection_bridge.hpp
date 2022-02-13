@@ -93,35 +93,9 @@ namespace cmk {
         void on_chare_arrival(T* obj, bool created)
         {
             auto* elt = static_cast<chare_base_*>(obj);
-            auto& assoc = elt->association_;
-            if (created)
-            {
-                auto pe = this->locmgr_.lookup(elt->index_);
-                auto n_children = this->locmgr_.num_span_tree_children(pe);
-                CmiAssert(!assoc && (pe == CmiMyPe()));
-                assoc.reset(new association_);
-                if (n_children > 0)
-                {
-                    // copied from qd.h -- memcheck seems to be legacy?
-                    std::vector<index_type> child_pes(n_children);
-                    this->locmgr_.span_tree_children(pe, child_pes.data());
-                    auto& children = assoc->children;
-                    children.reserve(n_children);
-                    std::transform(std::begin(child_pes), std::end(child_pes),
-                        std::back_inserter(children),
-                        index_view<index_type>::encode);
-                    CmiAssert(n_children == static_cast<int>(children.size()));
-                }
-                auto parent = this->locmgr_.span_tree_parent(pe);
-                if (parent >= 0)
-                {
-                    assoc->put_parent(index_view<index_type>::encode(parent));
-                }
-                else
-                {
-                    assoc->valid_parent = true;
-                }
-            }
+            this->associate(elt);
+            this->flush_buffers(elt->index_);
+            CmiAssertMsg(created, "group-like chares cannot migrate");
         }
 
         std::nullptr_t ready_callback_(void)
@@ -144,6 +118,36 @@ namespace cmk {
         }
 
         void send_location_update_(const chare_index_t&, int, int) {}
+
+        void associate(chare_base_* elt)
+        {
+            auto& assoc = elt->association_;
+            auto pe = this->locmgr_.lookup(elt->index_);
+            auto n_children = this->locmgr_.num_span_tree_children(pe);
+            CmiAssert(!assoc && (pe == CmiMyPe()));
+            assoc.reset(new association_);
+            if (n_children > 0)
+            {
+                // copied from qd.h -- memcheck seems to be legacy?
+                std::vector<index_type> child_pes(n_children);
+                this->locmgr_.span_tree_children(pe, child_pes.data());
+                auto& children = assoc->children;
+                children.reserve(n_children);
+                std::transform(std::begin(child_pes), std::end(child_pes),
+                    std::back_inserter(children),
+                    index_view<index_type>::encode);
+                CmiAssert(n_children == static_cast<int>(children.size()));
+            }
+            auto parent = this->locmgr_.span_tree_parent(pe);
+            if (parent >= 0)
+            {
+                assoc->put_parent(index_view<index_type>::encode(parent));
+            }
+            else
+            {
+                assoc->valid_parent = true;
+            }
+        }
 
         virtual bool emigrate(const chare_index_t&, int) override
         {
@@ -214,10 +218,19 @@ namespace cmk {
 
         void on_chare_arrival(T* obj, bool created)
         {
-            if (created)
+            auto* elt = static_cast<element_type>(obj);
+            auto& idx = elt->index_;
+            auto my_pe = CmiMyPe();
+            auto home_pe = this->locmgr_.home_pe(idx);
+            // TODO ( remove `created` here if Charm++ lacks it )
+            if (created && (home_pe != my_pe))
             {
-                this->associate(static_cast<element_type>(obj));
+                this->send_location_update_(idx, home_pe, my_pe);
             }
+            // try associating the chare (via the tree-builder)
+            this->associate(elt);
+            // flush any messages we have for it
+            this->flush_buffers(idx);
         }
 
         void set_insertion_status(bool status, const callback<message>& cb)
@@ -300,6 +313,7 @@ namespace cmk {
                 // 5) then update our local tables
                 this->locmgr_.update_location(idx, dst_pe);
                 this->chares_.erase(search);
+                // 6) TODO : trigger "on_departure" events?
                 return true;
             }
         }
@@ -355,8 +369,8 @@ namespace cmk {
             {
                 t->on_migrated();
             }
-            // flush the buffers in case we have messages for the chare
-            this->flush_buffers(idx);
+            // trigger the chare arrival events
+            this->on_chare_arrival(t, false);
         }
 
         void receive_status(message_ptr<data_message<bool>>&& msg)

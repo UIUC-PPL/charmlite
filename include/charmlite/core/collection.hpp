@@ -126,12 +126,9 @@ namespace cmk {
                     CmiAssertMsg(!msg->is_broadcast(), "not implemented!");
                     // call constructor on chare
                     rec->invoke(ch, std::move(msg));
-                    // notify all chare listeners
+                    // trigger all the chare on-arrival events
+                    // ( e.g., notify any listeners )
                     this->on_chare_arrival(ch, true);
-                    if (home_pe != my_pe)
-                        this->send_location_update_(idx, home_pe, my_pe);
-                    // flush any messages we have for it
-                    flush_buffers(idx);
                 }
                 else
                 {
@@ -266,7 +263,8 @@ namespace cmk {
             }
         }
 
-        virtual void contribute(message_ptr<>&& msg, std::optional<collective_id_t> tag) override
+        virtual void contribute(
+            message_ptr<>&& msg, std::optional<collective_id_t> tag) override
         {
             auto& ep = msg->dst_.endpoint();
             auto& idx = ep.chare;
