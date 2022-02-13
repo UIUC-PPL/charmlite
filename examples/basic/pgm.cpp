@@ -46,8 +46,9 @@ struct foo : public cmk::chare<foo, int>
         auto curr = CmiMyPe();
         if (orig != curr)
         {
-            CmiPrintf("ch%d@pe%d> resumed with %d!\n", this->index(), curr,
-                this->val);
+            auto& idx = this->index();
+            CmiAssert(idx == this->val);
+            CmiPrintf("ch%d@pe%d> resumed with %d!\n", idx, curr, this->val);
         }
 
         auto cb =

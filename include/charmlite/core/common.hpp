@@ -200,6 +200,10 @@ namespace cmk {
             std::numeric_limits<chare_index_t>::max();
     };
 
+    class collection_base_;
+
+    inline collection_base_* lookup(collection_index_t idx);
+
 }    // namespace cmk
 
 #endif

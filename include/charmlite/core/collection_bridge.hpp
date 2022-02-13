@@ -45,8 +45,6 @@ namespace cmk {
         virtual void flush_buffers(const chare_index_t&) {}
     };
 
-    inline collection_base_* lookup(collection_index_t idx);
-
     using collection_constructor_t =
         collection_base_* (*) (const collection_index_t&,
             const collection_options_base_&, const message*);
@@ -309,13 +307,13 @@ namespace cmk {
     private:
         static void reconstruct_chare_(T* t)
         {
-            if constexpr (std::is_default_constructible_v<T>)
-            {
-                new (t) T;
-            }
-            else if constexpr (std::is_constructible_v<T, PUP::reconstruct>)
+            if constexpr (std::is_constructible_v<T, PUP::reconstruct>)
             {
                 new (t) T(PUP::reconstruct{});
+            }
+            else if constexpr (std::is_default_constructible_v<T>)
+            {
+                new (t) T;
             }
             else
             {
