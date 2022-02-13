@@ -259,6 +259,12 @@ namespace cmk {
     class chare : public chare_base_
     {
     public:
+        bool migrate_me(int dst_pe)
+        {
+            auto* loc = lookup(this->parent_);
+            return loc && loc->emigrate(this->index_, dst_pe);
+        }
+
         const Index& index(void) const
         {
             return index_view<Index>::decode(this->index_);

@@ -5,4 +5,9 @@
 
 PUPbytes(cmk::collection_index_t);
 
+namespace cmk {
+    template <typename T>
+    constexpr auto is_pupable_v = PUP::details::is_pupable<T>::value;
+}
+
 #endif
