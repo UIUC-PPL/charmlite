@@ -298,8 +298,8 @@ namespace cmk {
                 msg->for_collection() = true;
                 send_helper_(dst_pe, message_ptr<>(msg));
                 // 5) then update our local tables
-                this->chares_.erase(search);
                 this->locmgr_.update_location(idx, dst_pe);
+                this->chares_.erase(search);
                 return true;
             }
         }
@@ -348,8 +348,8 @@ namespace cmk {
             pup_chare_(p, t);
             CmiEnforce(idx == static_cast<chare_base_*>(t)->index_);
             // update our local tables
-            this->chares_.emplace(idx, t);
             this->locmgr_.update_location(idx, mine);
+            this->chares_.emplace(idx, t);
             // call the chares "on_migrated" function if it has one
             if constexpr (impl::has_on_migrated_v<T>)
             {
