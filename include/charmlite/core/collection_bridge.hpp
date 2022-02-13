@@ -42,7 +42,7 @@ namespace cmk {
             return static_cast<T*>(this->lookup(idx));
         }
 
-        virtual void flush_buffers(const chare_index_t&) {}
+        virtual void flush_buffers(const chare_index_t&) = 0;
     };
 
     using collection_constructor_t =
@@ -201,6 +201,9 @@ namespace cmk {
 
         collection_bridge_(const collection_index_t& id)
           : collection_base_(id)
+          , locmgr_(std::bind(&self_type::send_location_update_, this,
+                std::placeholders::_1, std::placeholders::_2,
+                std::placeholders::_3))
           , endpoint_(cmk::helper_::chare_bcast_root_)
         {
         }
@@ -218,13 +221,20 @@ namespace cmk {
             return this->is_inserting_;
         }
 
+        void on_chare_depature(T*, bool)
+        {
+            // TODO ( trigger listeners when they're added  )
+            // TODO ( remove element's location from table? )
+        }
+
         void on_chare_arrival(T* obj, bool created)
         {
             auto* elt = static_cast<element_type>(obj);
             auto& idx = elt->index_;
             auto my_pe = CmiMyPe();
             auto home_pe = this->locmgr_.home_pe(idx);
-            // TODO ( remove `created` here if Charm++ lacks it )
+            // if this event is due to migration, then
+            // the home pe has already been updated
             if (created && (home_pe != my_pe))
             {
                 this->send_location_update_(idx, home_pe, my_pe);
@@ -297,36 +307,56 @@ namespace cmk {
             else
             {
                 auto* t = (search->second).get();
+                // abort migration if we can't do the thing
+                if (!chare_can_migrate_(t))
+                {
+                    return false;
+                }
+                // 0) inform listeners that the chare's leaving
+                //    TODO ( add about_to_migrate? )
+                this->on_chare_depature(t, false);
                 // 1) size the chare
-                PUP::sizer s;
+                PUP::sizer s(PUP::er::IS_MIGRATION);
                 pup_chare_(s, t);
                 // 2) so we can allocate an appropriately-sized message
                 auto total_size = s.size() + sizeof(message);
                 auto* msg = new (total_size) message(0x0, total_size);
                 // 3) then, pack the chare into the message
-                PUP::toMem p((char*) msg + sizeof(message));
+                PUP::toMem p(
+                    (char*) msg + sizeof(message), PUP::er::IS_MIGRATION);
                 pup_chare_(p, t);
-                CmiEnforce(p.size() == (total_size - sizeof(message)));
+                CmiAssert(p.size() == (total_size - sizeof(message)));
                 // 4) update its destination then send it
                 new (&msg->dst_) destination(
                     this->id_, idx, collection<T, Mapper>::receive_chare());
                 msg->for_collection() = true;
                 send_helper_(dst_pe, message_ptr<>(msg));
                 // 5) then update our local tables
-                this->locmgr_.update_location(idx, dst_pe);
+                //   `true` indicates that we need to inform the home pe
+                this->locmgr_.update_location(idx, dst_pe, true);
                 this->chares_.erase(search);
                 // 6) re-route messages to new location
                 this->flush_buffers(idx);
-                // TODOs:
-                // - pack any buffered messages with the chare
-                //   ( this will fold n-messages down to 1 )
-                // - call on_chare_departed(...)
-                // - ensure this is consistent with Charm++
+                // TODO ( pack any buffered messages with the chare )
+                //      ( this will fold n-messages down to 1       )
                 return true;
             }
         }
 
     private:
+        static bool chare_can_migrate_(const T* t)
+        {
+            auto* elt = static_cast<const chare_base_*>(t);
+            auto status = elt->parent_can_migrate_();
+
+            if constexpr (impl::has_can_migrate_v<T>)
+            {
+                status = status && t->can_migrate();
+            }
+
+            return status;
+        }
+
         static void reconstruct_chare_(T* t)
         {
             if constexpr (std::is_constructible_v<T, PUP::reconstruct>)
@@ -366,9 +396,11 @@ namespace cmk {
             auto mine = CmiMyPe();
             // restore the chare from the message
             auto* t = (T*) (::operator new(sizeof(T)));
-            PUP::fromMem p((char*) msg.get() + sizeof(message));
+            PUP::fromMem p(
+                (char*) msg.get() + sizeof(message), PUP::er::IS_MIGRATION);
             pup_chare_(p, t);
-            CmiEnforce(idx == static_cast<chare_base_*>(t)->index_);
+            CmiAssert((idx == static_cast<chare_base_*>(t)->index_) &&
+                (p.size() == (msg->total_size_ - sizeof(message))));
             // update our local tables
             this->locmgr_.update_location(idx, mine);
             this->chares_.emplace(idx, t);

@@ -149,6 +149,15 @@ namespace cmk {
             p | this->association_;
         }
 
+        bool parent_can_migrate_(void) const
+        {
+            using value_type = typename reducer_map_t::value_type;
+            return std::all_of(std::begin(this->reducers_),
+                std::end(this->reducers_), [](value_type const& val) {
+                    return val.second.received.empty();
+                });
+        }
+
     public:
         template <typename T, typename Index>
         friend class chare;

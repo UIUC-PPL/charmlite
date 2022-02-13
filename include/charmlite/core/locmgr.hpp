@@ -90,13 +90,23 @@ namespace cmk {
     template <typename Mapper>
     class locmgr : public locmgr_base_<Mapper>
     {
-        using location_map_t = std::unordered_map<chare_index_t, int>;
+    public:
+        using location_updater_t =
+            std::function<void(chare_index_t const&, int, int)>;
 
     private:
+        using location_map_t = std::unordered_map<chare_index_t, int>;
+
         location_map_t locmap_;
         location_map_t routing_cache_;
+        location_updater_t updater_;
 
     public:
+        locmgr(location_updater_t&& updater)
+          : updater_(std::forward<location_updater_t>(updater))
+        {
+        }
+
         int lookup(const chare_index_t& idx)
         {
             auto find = this->locmap_.find(idx);
@@ -123,15 +133,24 @@ namespace cmk {
             }
         }
 
-        void update_location(const chare_index_t& idx, const int pe)
+        // TODO - how to handle same element created on multiple PEs?
+        void update_location(
+            const chare_index_t& idx, int pe, bool inform_home = false)
         {
-            // TODO - how to handle same element created on multiple PEs?
-            if (CmiMyPe() == this->home_pe(idx))
+            auto home = this->home_pe(idx);
+            auto mine = CmiMyPe();
+
+            if (mine == home)
             {
                 this->locmap_[idx] = pe;
             }
             else
             {
+                if (inform_home)
+                {
+                    this->updater_(idx, home, pe);
+                }
+
                 this->routing_cache_[idx] = pe;
             }
         }
