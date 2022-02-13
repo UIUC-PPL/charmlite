@@ -90,7 +90,7 @@ namespace cmk {
         {
         }
 
-        void on_chare_arrival(T* obj, bool created)
+        void on_chare_arrival(T* obj, [[maybe_unused]] bool created)
         {
             auto* elt = static_cast<chare_base_*>(obj);
             this->associate(elt);
