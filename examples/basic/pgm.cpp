@@ -1,4 +1,4 @@
-/* charmlite demo
+/* charmlite migration demo
  *
  * author: j. szaday <szaday2@illinois.edu>
  */
@@ -19,23 +19,47 @@ struct test_message : public cmk::plain_message<test_message>
 // a chare that uses an int for its index
 struct foo : public cmk::chare<foo, int>
 {
-    int val;
+    int val, orig;
 
     foo(cmk::message_ptr<test_message>&& msg)
       : val(msg->val)
+      , orig(CmiMyPe())
     {
     }
 
+    foo(PUP::reconstruct) {}
+
     void bar(cmk::message_ptr<test_message>&& msg)
     {
-        auto mine = CmiMyPe();
-        CmiAssert((mine != 0) || (CmiNumPes() == 1));
-        CmiPrintf("ch%d@pe%d> %d+%d=%d\n", this->index(), mine, this->val,
+        CmiAssert((orig != 0) || (CmiNumPes() == 1));
+        CmiPrintf("ch%d@pe%d> %d+%d=%d\n", this->index(), orig, this->val,
             msg->val, this->val + msg->val);
+        auto dst_pe = (orig + 1) % CmiNumPes();
+        if (orig == dst_pe || !this->migrate_me(dst_pe))
+        {
+            this->on_migrated();
+        }
+    }
+
+    void on_migrated(void)
+    {
+        auto curr = CmiMyPe();
+        if (orig != curr)
+        {
+            CmiPrintf("ch%d@pe%d> resumed with %d!\n", this->index(), curr,
+                this->val);
+        }
+
         auto cb =
             cmk::callback<cmk::message>::construct<cmk::exit>(cmk::all::pes);
         this->element_proxy().contribute<cmk::nop<cmk::message>>(
-            std::move(msg), cb);
+            cmk::make_message<cmk::message>(), cb);
+    }
+
+    void pup(PUP::er& p)
+    {
+        p | this->val;
+        p | this->orig;
     }
 };
 

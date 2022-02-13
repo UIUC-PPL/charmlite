@@ -1,6 +1,7 @@
 #ifndef CHARMLITE_UTILITIES_TRAITS_HPP
 #define CHARMLITE_UTILITIES_TRAITS_HPP
 
+#include <charmlite/utilities/traits/chare.hpp>
 #include <charmlite/utilities/traits/message.hpp>
 #include <charmlite/utilities/traits/serialization.hpp>
 

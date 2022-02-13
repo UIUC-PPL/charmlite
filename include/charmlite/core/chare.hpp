@@ -3,9 +3,7 @@
 
 #include <charmlite/core/common.hpp>
 #include <charmlite/core/options.hpp>
-
-#include <memory>
-#include <unordered_map>
+#include <charmlite/serialization/serialization.hpp>
 
 namespace cmk {
 
@@ -80,6 +78,13 @@ namespace cmk {
             this->valid_parent = true;
             this->parent.emplace_back(index);
         }
+
+        void pup(PUP::er& p)
+        {
+            p | this->parent;
+            p | this->children;
+            p | this->valid_parent;
+        }
     };
 
     struct reducer_
@@ -89,9 +94,7 @@ namespace cmk {
         std::vector<chare_index_t> downstream;
         std::vector<message_ptr<message>> received;
 
-        reducer_(
-            collective_id_t redn_,
-            const std::vector<chare_index_t>& up,
+        reducer_(collective_id_t redn_, const std::vector<chare_index_t>& up,
             const std::vector<chare_index_t>& down)
           : redn(redn_)
           , upstream(up)
@@ -99,10 +102,22 @@ namespace cmk {
         {
         }
 
+        reducer_(PUP::reconstruct) {}
+
         bool ready(void) const
         {
             // a message from all our children and from us
             return received.size() == (upstream.size() + 1);
+        }
+
+        void pup(PUP::er& p)
+        {
+            p | this->redn;
+            p | this->upstream;
+            p | this->downstream;
+            // TODO ( lift this restriction by making messages PUP'able )
+            CmiEnforceMsg(this->received.empty(),
+                "chares with buffered reduction messages cannot migrate");
         }
     };
 
@@ -111,8 +126,8 @@ namespace cmk {
     private:
         collection_index_t parent_;
         chare_index_t index_;
-        collective_id_t last_redn_ = 0;
         collective_id_t last_bcast_ = 0;
+        collective_id_t last_redn_ = 0;
 
         using reducer_map_t = std::unordered_map<collective_id_t, reducer_>;
         reducer_map_t reducers_;
@@ -122,6 +137,16 @@ namespace cmk {
         std::size_t num_children_(void) const
         {
             return this->association_ ? this->association_->children.size() : 0;
+        }
+
+        void parent_pup_(PUP::er& p)
+        {
+            p | this->parent_;
+            p | this->index_;
+            p | this->last_bcast_;
+            p | this->last_redn_;
+            p | this->reducers_;
+            p | this->association_;
         }
 
     public:

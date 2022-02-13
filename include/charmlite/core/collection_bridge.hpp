@@ -31,7 +31,10 @@ namespace cmk {
 
         virtual void* lookup(const chare_index_t&) = 0;
         virtual void deliver(message_ptr<>&& msg, bool immediate) = 0;
-        virtual void contribute(message_ptr<>&& msg, std::optional<collective_id_t> tag) = 0;
+        virtual void contribute(
+            message_ptr<>&& msg, std::optional<collective_id_t> tag) = 0;
+
+        virtual bool emigrate(const chare_index_t&, int) = 0;
 
         template <typename T>
         inline T* lookup(const chare_index_t& idx)
@@ -143,6 +146,11 @@ namespace cmk {
         }
 
         void send_location_update_(const chare_index_t&, int, int) {}
+
+        virtual bool emigrate(const chare_index_t&, int) override
+        {
+            return false;
+        }
     };
 
     // this more or less implements the logic of hypercomm's
@@ -171,6 +179,13 @@ namespace cmk {
             using receiver_type = member_fn_t<self_type, location_message>;
             return cmk::entry<static_cast<receiver_type>(
                 &self_type::receive_location_update)>();
+        }
+
+        static entry_id_t receive_chare(void)
+        {
+            using receiver_type = member_fn_t<self_type, message>;
+            return cmk::entry<static_cast<receiver_type>(
+                &self_type::receive_chare)>();
         }
 
     protected:
@@ -259,7 +274,93 @@ namespace cmk {
             send_helper_(dst_pe, std::move(msg));
         }
 
+        virtual bool emigrate(const chare_index_t& idx, int dst_pe) override
+        {
+            auto search = this->chares_.find(idx);
+            if (search == std::end(this->chares_))
+            {
+                return false;
+            }
+            else
+            {
+                auto* t = (search->second).get();
+                // 1) size the chare
+                PUP::sizer s;
+                pup_chare_(s, t);
+                // 2) so we can allocate an appropriately-sized message
+                auto total_size = s.size() + sizeof(message);
+                auto* msg = new (total_size) message(0x0, total_size);
+                // 3) then, pack the chare into the message
+                PUP::toMem p((char*) msg + sizeof(message));
+                pup_chare_(p, t);
+                CmiEnforce(p.size() == (total_size - sizeof(message)));
+                // 4) update its destination then send it
+                new (&msg->dst_) destination(
+                    this->id_, idx, collection<T, Mapper>::receive_chare());
+                msg->for_collection() = true;
+                send_helper_(dst_pe, message_ptr<>(msg));
+                // 5) then update our local tables
+                this->chares_.erase(search);
+                this->locmgr_.update_location(idx, dst_pe);
+                return true;
+            }
+        }
+
     private:
+        static void reconstruct_chare_(T* t)
+        {
+            if constexpr (std::is_default_constructible_v<T>)
+            {
+                new (t) T;
+            }
+            else if constexpr (std::is_constructible_v<T, PUP::reconstruct>)
+            {
+                new (t) T(PUP::reconstruct{});
+            }
+            else
+            {
+                CmiAbort(
+                    "could not reconstruct chare of type %s", typeid(T).name());
+            }
+        }
+
+        static void pup_chare_(PUP::er& p, T* t)
+        {
+            if (p.isUnpacking())
+            {
+                reconstruct_chare_(t);
+            }
+
+            static_cast<chare_base_*>(t)->parent_pup_(p);
+
+            if constexpr (is_pupable_v<T>)
+            {
+                t->pup(p);
+            }
+        }
+
+        void receive_chare(message_ptr<>&& msg)
+        {
+            auto& ep = msg->dst_.endpoint();
+            auto& idx = ep.chare;
+            auto mine = CmiMyPe();
+            // restore the chare from the message
+            auto* t = (T*) (::operator new(sizeof(T)));
+            PUP::fromMem p((char*) msg.get() + sizeof(message));
+            pup_chare_(p, t);
+            CmiEnforce(idx == static_cast<chare_base_*>(t)->index_);
+            // update our local tables
+            this->chares_.emplace(idx, t);
+            this->locmgr_.update_location(idx, mine);
+            // call the chares "on_migrated" function if it has one
+            if constexpr (impl::has_on_migrated_v<T>)
+            {
+                t->on_migrated();
+            }
+            // flush the buffers in case we have messages for the chare
+            this->flush_buffers(idx);
+        }
+
         void receive_status(message_ptr<data_message<bool>>&& msg)
         {
             if (msg->value())
