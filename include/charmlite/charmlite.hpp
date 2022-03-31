@@ -60,6 +60,9 @@ namespace cmk {
         _topoTree = ST_RecursivePartition_getTreeInfo(0);
 #endif
         CmiNodeAllBarrier();
+#if CHARMLITE_TOPOLOGY
+        CmiCheckAffinity();
+#endif
     }
 
     inline void send(message_ptr<>&& msg, bool immediate)

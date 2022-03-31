@@ -93,6 +93,9 @@ namespace cmk {
         // threads wait until _topoTree has been generated
 #endif
         CmiNodeAllBarrier();
+#if CHARMLITE_TOPOLOGY
+        CmiCheckAffinity();
+#endif
         if (CmiInCommThread())
         {
             // the comm thread has to get back to work!

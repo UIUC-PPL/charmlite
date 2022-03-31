@@ -17,6 +17,7 @@
 #include "TopoManager.h"
 #include "spanningTree.h"
 
+void CmiCheckAffinity(void);
 void CmiInitCPUTopology(char** argv);
 void CmiInitMemAffinity(char** argv);
 #endif

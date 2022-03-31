@@ -36,6 +36,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 
 set(CMAKE_CXX_FLAGS "-language converse++ -Wall -Wextra" CACHE STRING "Additional arguments to charmc" FORCE)
 
+if(${CHARM_WITH_SMP})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCHARMLITE_TOPOLOGY=1")
+endif()
+
 # Charmlite requires a conforming C++11 compiler
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
